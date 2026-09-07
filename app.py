@@ -182,7 +182,7 @@ else:
         with col_f2:
             filtro_telefono = st.text_input("📱 Número de Teléfono:", placeholder="Buscar por número...")
         with col_f3:
-            rango_fechas = st.date_input("📅 Rango de Fechas:", value=(),
+            rango_fechas = st.date_input("📅 Rango de Fechas:", value=()),
 
         col_f4, col_f5 = st.columns(2)
         with col_f4:
