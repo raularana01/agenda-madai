@@ -46,7 +46,22 @@ st.title("📅 Agenda Virtual Madai")
 GOOGLE_SHEET_URL = st.secrets.get("GOOGLE_SHEET_URL", os.environ.get("GOOGLE_SHEET_URL", ""))
 GOOGLE_SCRIPT_URL = st.secrets.get("GOOGLE_SCRIPT_URL", os.environ.get("GOOGLE_SCRIPT_URL", ""))
 
-@st.cache_data(ttl=5)
+# =========================================================
+# PANEL DE DIAGNÓSTICO (Para rastrear el origen exacto)
+# =========================================================
+with st.expander("🛠️ Diagnóstico de Conexión (Revisar Origen de Datos)"):
+    st.write("**URL de lectura configurada (GOOGLE_SHEET_URL):**")
+    st.code(GOOGLE_SHEET_URL if GOOGLE_SHEET_URL else "NO CONFIGURADA")
+    
+    st.write("**URL de escritura configurada (GOOGLE_SCRIPT_URL):**")
+    st.code(GOOGLE_SCRIPT_URL if GOOGLE_SCRIPT_URL else "NO CONFIGURADA")
+
+    if st.button("🔄 Borrar memoria Caché de Streamlit"):
+        st.cache_data.clear()
+        st.success("¡Caché borrada exitosamente!")
+        st.rerun()
+
+@st.cache_data(ttl=0) # ttl=0 para forzar la lectura sin caché
 def cargar_datos(url):
     if not url:
         return pd.DataFrame()
@@ -59,7 +74,6 @@ def cargar_datos(url):
         st.error(f"Error al conectar con Google Sheets: {e}")
         return pd.DataFrame()
 
-# Función para formatear hora ingresada (convierte '3' o '03' a '03:00')
 def formatear_hora(hora_raw, am_pm):
     hora_clean = str(hora_raw).strip()
     if not hora_clean:
@@ -76,11 +90,11 @@ if not GOOGLE_SHEET_URL:
 else:
     df = cargar_datos(GOOGLE_SHEET_URL)
 
-    # Estado de sesión para controlar la pestaña activa (Redirección automática)
-    if "tab_activa" not in st.session_state:
-        st.session_state["tab_activa"] = "Eventos"
+    # Mostrar en el panel de diagnóstico los datos crudos
+    with st.expander("📊 Ver Tabla Cruda Recibida de Google Sheets"):
+        st.write("Columnas detectadas:", df.columns.tolist())
+        st.dataframe(df)
 
-    # Selector de Pestañas
     tab_eventos, tab_filtro, tab_nuevo = st.tabs(["Eventos", "Filtro", "Nuevo"])
 
     # =========================================================
@@ -225,7 +239,6 @@ else:
                 with col1:
                     concepto_alquiler = st.text_input("Concepto de Alquiler", placeholder="ej. Sillas, Toldo, Luces")
                     
-                    # Campos de Hora con AM/PM
                     col_h1, col_h2 = st.columns([2, 1])
                     with col_h1:
                         h_raw = st.text_input("Hora de Entrega", placeholder="ej. 03 o 03:30")
@@ -246,7 +259,6 @@ else:
                 with col1:
                     nombre_evento = st.text_input("Nombre del Evento", placeholder="ej. Cumpleaños de Gia")
                     
-                    # Hora Contrato
                     col_hc1, col_hc2 = st.columns([2, 1])
                     with col_hc1:
                         hc_raw = st.text_input("Hora Contrato / Inicio Show", placeholder="ej. 04 o 04:30")
@@ -254,7 +266,6 @@ else:
                         hc_ampm = st.selectbox("Formato", ["PM", "AM"], key="ampm_hc")
                     hora_contrato_str = formatear_hora(hc_raw, hc_ampm)
 
-                    # Hora Citación
                     col_hi1, col_hi2 = st.columns([2, 1])
                     with col_hi1:
                         hi_raw = st.text_input("Hora Citación / Invitación", placeholder="ej. 03 o 03:30")
@@ -339,9 +350,8 @@ else:
                     try:
                         res = requests.post(GOOGLE_SCRIPT_URL, data=json.dumps(payload))
                         if res.status_code == 200:
-                            st.success("🎉 ¡El servicio fue guardado con éxito! Redireccionando...")
+                            st.success("🎉 ¡El servicio fue guardado con éxito!")
                             st.cache_data.clear()
-                            # Forzar recarga a la pestaña Eventos
                             st.rerun()
                         else:
                             st.error(f"Error HTTP {res.status_code} al guardar en Google Sheets.")
