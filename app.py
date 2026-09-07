@@ -162,7 +162,7 @@ else:
             st.info("No hay datos guardados aún en la base de datos.")
 
     # =========================================================
-    # 2. PESTAÑA: FILTRO (MODIFICADA)
+    # 2. PESTAÑA: FILTRO
     # =========================================================
     with tab_filtro:
         st.subheader("🔍 Búsqueda y Filtros Especiales")
@@ -182,7 +182,7 @@ else:
         with col_f2:
             filtro_telefono = st.text_input("📱 Número de Teléfono:", placeholder="Buscar por número...")
         with col_f3:
-            rango_fechas = st.date_input("📅 Rango de Fechas:", value=()),
+            rango_fechas = st.date_input("📅 Rango de Fechas:", value=())
 
         col_f4, col_f5 = st.columns(2)
         with col_f4:
@@ -223,19 +223,18 @@ else:
         st.dataframe(df_filtrado, use_container_width=True)
 
     # =========================================================
-    # 3. PESTAÑA: NUEVO (MODIFICADA)
+    # 3. PESTAÑA: NUEVO (OPTIMIZADA)
     # =========================================================
     with tab_nuevo:
         st.subheader("➕ Llenar Servicio")
         
+        # Fecha y Tipo de Servicio lado a lado
         col_s1, col_s2 = st.columns(2)
         with col_s1:
             fecha_input = st.date_input("1. Fecha del Servicio", datetime.now())
             fecha_str = fecha_input.strftime("%Y-%m-%d")
         with col_s2:
             tipo_servicio = st.selectbox("2. Tipo de Servicio", ["Show", "Decoración", "Show + Decoración", "Alquiler"])
-
-        st.markdown("---")
 
         with st.form("form_servicio", clear_on_submit=True):
             nombre_evento = ""
@@ -259,23 +258,44 @@ else:
                     nombre_evento = f"Alquiler - {concepto_alquiler}" if concepto_alquiler else "Alquiler"
                     hora_invitacion_str = hora_contrato_str
 
-            else:
+            elif tipo_servicio == "Decoración":
                 col1, col2 = st.columns(2)
                 with col1:
-                    nombre_evento = st.text_input("Nombre del Evento", placeholder="ej. Cumpleaños de Gia")
-                    
-                    hc_input = st.time_input("Hora Contrato / Inicio Show", value=datetime.strptime("16:00", "%H:%M").time())
+                    nombre_evento = st.text_input("Nombre del Evento", placeholder="ej. Decoración Cumpleaños")
+                    hc_input = st.time_input("Hora Contrato / Instalación", value=datetime.strptime("10:00", "%H:%M").time())
                     hora_contrato_str = hc_input.strftime("%I:%M %p")
-
-                    hi_input = st.time_input("Hora Citación / Invitación", value=datetime.strptime("15:00", "%H:%M").time())
-                    hora_invitacion_str = hi_input.strftime("%I:%M %p")
-
+                    hora_invitacion_str = hora_contrato_str
                     direccion = st.text_input("Dirección del Evento")
 
                 with col2:
                     cliente = st.text_input("Nombre del Cliente")
                     telefono = st.text_input("Teléfono del Cliente")
-                    agregar_alquiler = st.radio("¿Agregar Alquiler adicional?", ["No", "Sí"], horizontal=True)
+
+            else:  # Show o Show + Decoración
+                col1, col2 = st.columns(2)
+                with col1:
+                    nombre_evento = st.text_input("Nombre del Evento", placeholder="ej. Cumpleaños de Gia")
+                    
+                    # Horas de contrato e invitación lado a lado
+                    col_h1, col_h2 = st.columns(2)
+                    with col_h1:
+                        hc_input = st.time_input("Hora Contrato / Inicio Show", value=datetime.strptime("16:00", "%H:%M").time())
+                        hora_contrato_str = hc_input.strftime("%I:%M %p")
+                    with col_h2:
+                        hi_input = st.time_input("Hora Citación / Invitación", value=datetime.strptime("15:00", "%H:%M").time())
+                        hora_invitacion_str = hi_input.strftime("%I:%M %p")
+
+                    direccion = st.text_input("Dirección del Evento")
+
+                with col2:
+                    cliente = st.text_input("Nombre del Cliente")
+                    
+                    # Teléfono y Agregar Alquiler lado a lado
+                    col_t1, col_t2 = st.columns(2)
+                    with col_t1:
+                        telefono = st.text_input("Teléfono del Cliente")
+                    with col_t2:
+                        agregar_alquiler = st.radio("¿Agregar Alquiler?", ["No", "Sí"], horizontal=True)
 
                 if agregar_alquiler == "Sí":
                     st.markdown("##### 📦 Detalles del Alquiler Agregado")
@@ -286,29 +306,24 @@ else:
                         monto_alquiler = st.number_input("Monto del Alquiler Agregado (S/)", min_value=0, step=1, value=0)
 
             st.markdown("---")
-            st.markdown("### Información de Pago")
 
-            col_p1, col_p2, col_p3 = st.columns(3)
+            # Sección de Pagos simplificada
+            col_p1, col_p2 = st.columns(2)
             with col_p1:
                 costo_total = st.number_input("Costo Total del Servicio (S/)", min_value=0, step=1, value=0)
-
-            with col_p2:
-                estado_pago = st.selectbox("Estado de Pago", ["Adelanto parcial", "Pago completo", "Pendiente"])
+                estado_pago = st.radio("Estado de Pago", ["Pago completo", "Pago parcial"], horizontal=True)
 
             monto_adelanto = 0
             monto_pendiente = 0
 
-            with col_p3:
-                if estado_pago == "Adelanto parcial":
+            with col_p2:
+                if estado_pago == "Pago parcial":
                     monto_adelanto = st.number_input("Monto de Adelanto (S/)", min_value=0, max_value=int(costo_total) if costo_total > 0 else 99999, step=1, value=0)
                     monto_pendiente = max(0, int(costo_total) - int(monto_adelanto))
-                    st.info(f"💵 **Pago Pendiente:** S/ {monto_pendiente}")
-                elif estado_pago == "Pago completo":
-                    monto_adelanto = int(costo_total)
-                    st.success("✅ Servicio cancelado completo.")
+                    st.warning(f"💵 **PAGO PENDIENTE:** S/ {monto_pendiente}")
                 else:
-                    monto_adelanto = 0
-                    st.warning(f"⚠️ Saldo pendiente: S/ {costo_total}")
+                    monto_adelanto = int(costo_total)
+                    st.success("### ✅ CANCELADO")
 
             st.markdown("---")
             descripcion = st.text_area("📝 Detalles / Observaciones Adicionales", placeholder="Escribe aquí detalles adicionales...")
@@ -324,6 +339,8 @@ else:
                         desglose_partes.append(f"{tipo_servicio}: S/ {costo_total - monto_alquiler}")
                     if concepto_alquiler:
                         desglose_partes.append(f"Alquiler: S/ {monto_alquiler} ({concepto_alquiler})")
+                    if estado_pago == "Pago parcial":
+                        desglose_partes.append(f"Pendiente: S/ {monto_pendiente}")
                     
                     desglose_str = " | ".join(desglose_partes) if desglose_partes else f"S/ {costo_total}"
 
