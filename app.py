@@ -70,17 +70,6 @@ def cargar_datos(url):
         st.error(f"Error al conectar con Google Sheets: {e}")
         return pd.DataFrame()
 
-def formatear_hora(hora_raw, am_pm):
-    hora_clean = str(hora_raw).strip()
-    if not hora_clean:
-        return "N/A"
-    if ":" not in hora_clean:
-        if len(hora_clean) == 1:
-            hora_clean = f"0{hora_clean}:00"
-        elif len(hora_clean) == 2:
-            hora_clean = f"{hora_clean}:00"
-    return f"{hora_clean} {am_pm}"
-
 if not GOOGLE_SHEET_URL:
     st.warning("⚠️ Configura GOOGLE_SHEET_URL en los secretos de Streamlit.")
 else:
@@ -173,51 +162,82 @@ else:
             st.info("No hay datos guardados aún en la base de datos.")
 
     # =========================================================
-    # 2. PESTAÑA: FILTRO
+    # 2. PESTAÑA: FILTRO (MODIFICADA)
     # =========================================================
     with tab_filtro:
-        st.subheader("🔍 Filtros Personalizados")
+        st.subheader("🔍 Búsqueda y Filtros Especiales")
         
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            filtro_texto = st.text_input("Buscar por texto:")
-        with c2:
+        df_filtrado = df.copy()
+        
+        # Preparar columna de fecha parseada para filtrar por rango
+        if not df_filtrado.empty and "Fecha" in df_filtrado.columns:
+            df_filtrado["Fecha_DT"] = pd.to_datetime(df_filtrado["Fecha"], errors="coerce", dayfirst=True)
+            mask_nat = df_filtrado["Fecha_DT"].isna()
+            if mask_nat.any():
+                df_filtrado.loc[mask_nat, "Fecha_DT"] = pd.to_datetime(df_filtrado.loc[mask_nat, "Fecha"], errors="coerce")
+
+        col_f1, col_f2, col_f3 = st.columns(3)
+        with col_f1:
+            filtro_cliente = st.text_input("👤 Cliente / Nombre del Evento:", placeholder="Buscar por cliente o evento...")
+        with col_f2:
+            filtro_telefono = st.text_input("📱 Número de Teléfono:", placeholder="Buscar por número...")
+        with col_f3:
+            rango_fechas = st.date_input("📅 Rango de Fechas:", value=(), placeholder="Selecciona inicio y fin")
+
+        col_f4, col_f5 = st.columns(2)
+        with col_f4:
             opciones_estado = ["Todos"] + list(df["Estado_Pago"].unique()) if not df.empty and "Estado_Pago" in df.columns else ["Todos"]
             filtro_estado = st.selectbox("Estado de Pago:", opciones_estado)
-        with c3:
+        with col_f5:
             opciones_tipo = ["Todos"] + list(df["Tipo"].unique()) if not df.empty and "Tipo" in df.columns else ["Todos"]
             filtro_tipo = st.selectbox("Tipo de Servicio:", opciones_tipo)
 
-        df_filtrado = df.copy()
+        # Aplicación de Filtros
+        if filtro_cliente and not df_filtrado.empty:
+            mask_cliente = (
+                df_filtrado["Cliente"].astype(str).str.contains(filtro_cliente, case=False, na=False) |
+                df_filtrado["Evento"].astype(str).str.contains(filtro_cliente, case=False, na=False)
+            )
+            df_filtrado = df_filtrado[mask_cliente]
 
-        if filtro_texto and not df_filtrado.empty:
-            mask = df_filtrado.apply(lambda row: row.astype(str).str.contains(filtro_texto, case=False).any(), axis=1)
-            df_filtrado = df_filtrado[mask]
+        if filtro_telefono and not df_filtrado.empty:
+            df_filtrado = df_filtrado[df_filtrado["Telefono"].astype(str).str.contains(filtro_telefono, case=False, na=False)]
 
-        if filtro_estado != "Todos":
+        if isinstance(rango_fechas, (list, tuple)) and len(rango_fechas) == 2 and not df_filtrado.empty:
+            f_inicio, f_fin = rango_fechas
+            df_filtrado = df_filtrado[
+                (df_filtrado["Fecha_DT"].dt.date >= f_inicio) & 
+                (df_filtrado["Fecha_DT"].dt.date <= f_fin)
+            ]
+
+        if filtro_estado != "Todos" and not df_filtrado.empty:
             df_filtrado = df_filtrado[df_filtrado["Estado_Pago"] == filtro_estado]
 
-        if filtro_tipo != "Todos":
+        if filtro_tipo != "Todos" and not df_filtrado.empty:
             df_filtrado = df_filtrado[df_filtrado["Tipo"] == filtro_tipo]
 
-        st.write(f"**Coincidencias:** {len(df_filtrado)}")
+        if "Fecha_DT" in df_filtrado.columns:
+            df_filtrado = df_filtrado.drop(columns=["Fecha_DT"])
+
+        st.write(f"**Resultados encontrados:** {len(df_filtrado)}")
         st.dataframe(df_filtrado, use_container_width=True)
 
     # =========================================================
-    # 3. PESTAÑA: NUEVO
+    # 3. PESTAÑA: NUEVO (MODIFICADA)
     # =========================================================
     with tab_nuevo:
         st.subheader("➕ Llenar Servicio")
         
-        fecha_input = st.date_input("1. Fecha del Servicio", datetime.now())
-        fecha_str = fecha_input.strftime("%Y-%m-%d")
-
-        tipo_servicio = st.selectbox("2. Tipo de Servicio", ["Show", "Decoración", "Show + Decoración", "Alquiler"])
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            fecha_input = st.date_input("1. Fecha del Servicio", datetime.now())
+            fecha_str = fecha_input.strftime("%Y-%m-%d")
+        with col_s2:
+            tipo_servicio = st.selectbox("2. Tipo de Servicio", ["Show", "Decoración", "Show + Decoración", "Alquiler"])
 
         st.markdown("---")
 
         with st.form("form_servicio", clear_on_submit=True):
-            
             nombre_evento = ""
             hora_contrato_str = ""
             hora_invitacion_str = ""
@@ -229,14 +249,8 @@ else:
                 col1, col2 = st.columns(2)
                 with col1:
                     concepto_alquiler = st.text_input("Concepto de Alquiler", placeholder="ej. Sillas, Toldo, Luces")
-                    
-                    col_h1, col_h2 = st.columns([2, 1])
-                    with col_h1:
-                        h_raw = st.text_input("Hora de Entrega", placeholder="ej. 03 o 03:30")
-                    with col_h2:
-                        h_ampm = st.selectbox("Formato", ["PM", "AM"], key="ampm1")
-                    hora_contrato_str = formatear_hora(h_raw, h_ampm)
-                    
+                    hora_entrega_input = st.time_input("Hora de Entrega", value=datetime.strptime("15:00", "%H:%M").time())
+                    hora_contrato_str = hora_entrega_input.strftime("%I:%M %p")
                     direccion = st.text_input("Dirección de Entrega")
 
                 with col2:
@@ -250,19 +264,11 @@ else:
                 with col1:
                     nombre_evento = st.text_input("Nombre del Evento", placeholder="ej. Cumpleaños de Gia")
                     
-                    col_hc1, col_hc2 = st.columns([2, 1])
-                    with col_hc1:
-                        hc_raw = st.text_input("Hora Contrato / Inicio Show", placeholder="ej. 04 o 04:30")
-                    with col_hc2:
-                        hc_ampm = st.selectbox("Formato", ["PM", "AM"], key="ampm_hc")
-                    hora_contrato_str = formatear_hora(hc_raw, hc_ampm)
+                    hc_input = st.time_input("Hora Contrato / Inicio Show", value=datetime.strptime("16:00", "%H:%M").time())
+                    hora_contrato_str = hc_input.strftime("%I:%M %p")
 
-                    col_hi1, col_hi2 = st.columns([2, 1])
-                    with col_hi1:
-                        hi_raw = st.text_input("Hora Citación / Invitación", placeholder="ej. 03 o 03:30")
-                    with col_hi2:
-                        hi_ampm = st.selectbox("Formato", ["PM", "AM"], key="ampm_hi")
-                    hora_invitacion_str = formatear_hora(hi_raw, hi_ampm)
+                    hi_input = st.time_input("Hora Citación / Invitación", value=datetime.strptime("15:00", "%H:%M").time())
+                    hora_invitacion_str = hi_input.strftime("%I:%M %p")
 
                     direccion = st.text_input("Dirección del Evento")
 
@@ -280,7 +286,7 @@ else:
                         monto_alquiler = st.number_input("Monto del Alquiler Agregado (S/)", min_value=0, step=1, value=0)
 
             st.markdown("---")
-            st.markdown("### 💰 Información de Pago (en Soles S/)")
+            st.markdown("### Información de Pago")
 
             col_p1, col_p2, col_p3 = st.columns(3)
             with col_p1:
