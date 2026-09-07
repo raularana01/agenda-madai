@@ -1,359 +1,165 @@
 import streamlit as st
 import pandas as pd
 import requests
-import json
-import os
-from datetime import datetime, timedelta
 
 # Configuración de la página
-st.set_page_config(page_title="Agenda Madai", page_icon="📅", layout="wide")
+st.set_page_config(
+    page_title="AGENDA VIRTUAL MADAI",
+    page_icon="📅",
+    layout="wide"
+)
 
-# Estilos CSS
-st.markdown("""
-<style>
-    .card-hoy {
-        background-color: #E8F5E9;
-        border-left: 6px solid #2E7D32;
-        padding: 15px;
-        border-radius: 8px;
-        margin-bottom: 12px;
-        color: #1B5E20;
-    }
-    .card-proximo {
-        background-color: #E3F2FD;
-        border-left: 6px solid #1565C0;
-        padding: 15px;
-        border-radius: 8px;
-        margin-bottom: 12px;
-        color: #0D47A1;
-    }
-    .card-header {
-        font-size: 18px;
-        font-weight: bold;
-        margin-bottom: 5px;
-    }
-    .card-sub {
-        font-size: 14px;
-        color: #333333;
-        margin-bottom: 3px;
-    }
-</style>
-""", unsafe_allow_html=True)
+# URL de tu implementación de Google Apps Script
+# Reemplaza esta URL con la tuya de Apps Script
+WEB_APP_URL = "TU_URL_DE_GOOGLE_APPS_SCRIPT_AQUI"
 
-st.title("📅 Agenda Virtual Madai")
+# Función para cargar datos desde la hoja pública/JSON o CSV
+@st.cache_data(ttl=5)
+def cargar_datos():
+    # Opción alternativa si publicas la hoja como CSV o lees directo por API
+    # Reemplaza con tu URL CSV pública de Google Sheets si corresponde:
+    # return pd.read_csv("TU_URL_CSV_DE_GOOGLE_SHEETS")
+    return pd.DataFrame()
 
-# Cargar variables de secretos
-GOOGLE_SHEET_URL = st.secrets.get("GOOGLE_SHEET_URL", os.environ.get("GOOGLE_SHEET_URL", ""))
-GOOGLE_SCRIPT_URL = st.secrets.get("GOOGLE_SCRIPT_URL", os.environ.get("GOOGLE_SCRIPT_URL", ""))
+# --- TÍTULO PRINCIPAL ---
+st.title("📅 AGENDA VIRTUAL MADAI")
 
-# =========================================================
-# PANEL DE DIAGNÓSTICO (Para rastrear el origen exacto)
-# =========================================================
-with st.expander("🛠️ Diagnóstico de Conexión (Revisar Origen de Datos)"):
-    st.write("**URL de lectura configurada (GOOGLE_SHEET_URL):**")
-    st.code(GOOGLE_SHEET_URL if GOOGLE_SHEET_URL else "NO CONFIGURADA")
+# Botón para refrescar caché
+if st.button("🔄 Actualizar Datos"):
+    st.cache_data.clear()
+    st.rerun()
+
+# Crear Pestañas
+tab1, tab2 = st.tabs(["📋 Lista de Eventos", "➕ Llenar Servicio"])
+
+# ==========================================
+# TAB 1: LISTA DE EVENTOS
+# ==========================================
+with tab1:
+    st.subheader("Búsqueda y Filtro de Eventos")
     
-    st.write("**URL de escritura configurada (GOOGLE_SCRIPT_URL):**")
-    st.code(GOOGLE_SCRIPT_URL if GOOGLE_SCRIPT_URL else "NO CONFIGURADA")
+    # Filtro exclusivo por teléfono o cliente
+    busqueda_cliente = st.text_input(
+        "🔍 Buscar por Teléfono o Cliente:",
+        placeholder="Ingrese número de celular o nombre del cliente..."
+    )
 
-    if st.button("🔄 Borrar memoria Caché de Streamlit"):
-        st.cache_data.clear()
-        st.success("¡Caché borrada exitosamente!")
-        st.rerun()
+    # Cargar dataframe
+    df = cargar_datos()
 
-@st.cache_data(ttl=0) # ttl=0 para forzar la lectura sin caché
-def cargar_datos(url):
-    if not url:
-        return pd.DataFrame()
-    try:
-        df = pd.read_csv(url, dtype=str)
-        df = df.fillna("")
-        df.columns = df.columns.str.strip()
-        return df
-    except Exception as e:
-        st.error(f"Error al conectar con Google Sheets: {e}")
-        return pd.DataFrame()
+    if not df.empty:
+        # Aplicar filtro solo por teléfono o cliente
+        if busqueda_cliente:
+            busqueda_str = str(busqueda_cliente).lower().strip()
+            condicion_tel = df["Telefono"].astype(str).str.lower().str.contains(busqueda_str, na=False)
+            condicion_cli = df["Cliente"].astype(str).str.lower().str.contains(busqueda_str, na=False)
+            df_filtrado = df[condicion_tel | condicion_cli]
+        else:
+            df_filtrado = df
 
-def formatear_hora(hora_raw, am_pm):
-    hora_clean = str(hora_raw).strip()
-    if not hora_clean:
-        return "N/A"
-    if ":" not in hora_clean:
-        if len(hora_clean) == 1:
-            hora_clean = f"0{hora_clean}:00"
-        elif len(hora_clean) == 2:
-            hora_clean = f"{hora_clean}:00"
-    return f"{hora_clean} {am_pm}"
+        # Mostrar tabla/tarjetas de resultados
+        st.dataframe(df_filtrado, use_container_width=True)
+    else:
+        st.info("Ingresa la URL pública CSV o conecta la lectura para visualizar la lista de eventos.")
 
-if not GOOGLE_SHEET_URL:
-    st.warning("⚠️ Configura GOOGLE_SHEET_URL en los secretos de Streamlit.")
-else:
-    df = cargar_datos(GOOGLE_SHEET_URL)
+# ==========================================
+# TAB 2: LLENAR SERVICIO
+# ==========================================
+with tab2:
+    st.subheader("Registro de Nuevo Servicio")
 
-    # Mostrar en el panel de diagnóstico los datos crudos
-    with st.expander("📊 Ver Tabla Cruda Recibida de Google Sheets"):
-        st.write("Columnas detectadas:", df.columns.tolist())
-        st.dataframe(df)
+    with st.form("form_registro_evento", clear_on_submit=True):
+        # 1. Datos Generales
+        col_fecha, col_tipo = st.columns(2)
+        
+        with col_fecha:
+            fecha_evento = st.date_input("1. Fecha del Evento")
 
-    tab_eventos, tab_filtro, tab_nuevo = st.tabs(["Eventos", "Filtro", "Nuevo"])
-
-    # =========================================================
-    # 1. PESTAÑA: EVENTOS
-    # =========================================================
-    with tab_eventos:
-        st.subheader("📌 Eventos Registrados")
-
-        if not df.empty and "Fecha" in df.columns:
-            df_copia = df.copy()
-            df_copia["Fecha_Parsed"] = pd.to_datetime(df_copia["Fecha"], errors="coerce", dayfirst=True)
-            
-            mask_nat = df_copia["Fecha_Parsed"].isna()
-            if mask_nat.any():
-                df_copia.loc[mask_nat, "Fecha_Parsed"] = pd.to_datetime(df_copia.loc[mask_nat, "Fecha"], errors="coerce")
-
-            df_copia["Fecha_Clean"] = df_copia["Fecha_Parsed"].dt.strftime("%Y-%m-%d")
-
-            hoy_dt = datetime.now()
-            hoy_str = hoy_dt.strftime("%Y-%m-%d")
-
-            modo_vista = st.radio(
-                "Ver eventos por categoría:",
-                ["Eventos del día (Hoy)", "Próximos 3 días", "Todos los eventos agendados"],
-                horizontal=True
+        with col_tipo:
+            tipo_servicio = st.selectbox(
+                "2. Tipo de Servicio",
+                ["Show", "Decoración", "Show + Decoración", "Decoración + Alquiler"]
             )
 
-            st.markdown("---")
+        # Nombre del Evento (Sin espacios vacíos excesivos arriba)
+        nombre_evento = st.text_input("Nombre del Evento", placeholder="ej. Cumpleaños de Gia")
 
-            if modo_vista == "Eventos del día (Hoy)":
-                st.markdown(f"### 🟢 Eventos para Hoy ({hoy_str})")
-                df_hoy = df_copia[df_copia["Fecha_Clean"] == hoy_str]
+        # Hora e Invitación (Selección AM/PM dentro del mismo grupo)
+        col_h1, col_h2 = st.columns(2)
 
-                if not df_hoy.empty:
-                    for _, row in df_hoy.iterrows():
-                        st.markdown(f"""
-                        <div class="card-hoy">
-                            <div class="card-header">🎉 {row.get('Evento', 'Evento')} ({row.get('Tipo', '')})</div>
-                            <div class="card-sub"><b>⏰ Hora Contrato:</b> {row.get('Hora', 'N/A')} | <b>Citación:</b> {row.get('Hora_Invitacion', 'N/A')}</div>
-                            <div class="card-sub"><b>👤 Cliente:</b> {row.get('Cliente', 'N/A')} | <b>📱 Tel:</b> {row.get('Telefono', 'N/A')}</div>
-                            <div class="card-sub"><b>📍 Lugar:</b> {row.get('Direccion', 'N/A')}</div>
-                            <div class="card-sub"><b>💰 Total:</b> S/ {row.get('Costo_Total', '0')} | <b>Estado:</b> {row.get('Estado_Pago', 'N/A')}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
+        with col_h1:
+            st.write("**Hora Contrato / Inicio Show**")
+            col_hora_val, col_hora_ampm = st.columns([3, 1.5])
+            with col_hora_val:
+                hora_input = st.text_input("Hora", placeholder="ej. 04:00", label_visibility="collapsed")
+            with col_hora_ampm:
+                formato_ampm = st.selectbox("", ["AM", "PM"], key="ampm_show", label_visibility="collapsed")
+
+        with col_h2:
+            st.write("**Hora Invitación**")
+            col_inv_val, col_inv_ampm = st.columns([3, 1.5])
+            with col_inv_val:
+                hora_inv_input = st.text_input("Hora Inv", placeholder="ej. 03:30", label_visibility="collapsed")
+            with col_inv_ampm:
+                formato_inv_ampm = st.selectbox("", ["AM", "PM"], key="ampm_inv", label_visibility="collapsed")
+
+        # Dirección y Datos de Cliente
+        direccion = st.text_input("Dirección del Evento", placeholder="ej. La Florida")
+
+        col_cli, col_tel = st.columns(2)
+        with col_cli:
+            cliente = st.text_input("Nombre del Cliente", placeholder="ej. Viviana Tuesta")
+        with col_tel:
+            telefono = st.text_input("Teléfono del Cliente", placeholder="ej. 900783201")
+
+        # Costos y Pagos (Sin título "Costo en soles")
+        col_c1, col_c2, col_c3 = st.columns(3)
+        with col_c1:
+            costo_total = st.number_input("Costo Total (S/)", min_value=0.0, step=10.0, value=0.0)
+        with col_c2:
+            monto_adelanto = st.number_input("Monto Adelanto (S/)", min_value=0.0, step=10.0, value=0.0)
+        with col_c3:
+            estado_pago = st.selectbox("Estado de Pago", ["Adelanto", "Pago completo", "Pendiente"])
+
+        # Detalle adicional
+        descripcion = st.text_area("Descripción", placeholder="Detalles o anotaciones adicionales...", value="Sin Descripción")
+        desglose_costos = st.text_input("Desglose Costos", value="Show: S/ 0")
+        concepto_alquiler = st.text_input("Concepto Alquiler", value="No registrado")
+
+        # Botón para enviar datos
+        submit_btn = st.form_submit_button("💾 Guardar Servicio", use_container_width=True)
+
+        if submit_btn:
+            # Armar los valores compuestos de hora
+            hora_completa = f"{hora_input} {formato_ampm}".strip() if hora_input else "No registrado"
+            hora_inv_completa = f"{hora_inv_input} {formato_inv_ampm}".strip() if hora_inv_input else "No registrado"
+
+            # Crear diccionario con los datos
+            payload = {
+                "Fecha": str(fecha_evento),
+                "Tipo": tipo_servicio,
+                "Evento": nombre_evento if nombre_evento else "Sin Nombre",
+                "Hora": hora_completa,
+                "Direccion": direccion if direccion else "No registrado",
+                "Hora_Invitacion": hora_inv_completa,
+                "Cliente": cliente if cliente else "No registrado",
+                "Telefono": telefono if telefono else "No registrado",
+                "Costo_Total": str(costo_total),
+                "Monto_Adelanto": str(monto_adelanto),
+                "Estado_Pago": estado_pago,
+                "Descripcion": descripcion,
+                "Desglose_Costos": desglose_costos,
+                "Concepto_Alquiler": concepto_alquiler
+            }
+
+            # Enviar petición POST a Google Apps Script
+            try:
+                response = requests.post(WEB_APP_URL, json=payload)
+                if response.status_code == 200:
+                    st.success("✅ ¡Evento guardado correctamente en tu tabla principal!")
+                    st.cache_data.clear()
                 else:
-                    st.info(f"No hay eventos registrados exactamente para hoy ({hoy_str}).")
-
-            elif modo_vista == "Próximos 3 días":
-                dias_proximos = [(hoy_dt + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(0, 4)]
-                df_3dias = df_copia[df_copia["Fecha_Clean"].isin(dias_proximos)].sort_values("Fecha_Clean")
-
-                st.markdown("### 🔵 Eventos de los próximos 3 días")
-                if not df_3dias.empty:
-                    for _, row in df_3dias.iterrows():
-                        st.markdown(f"""
-                        <div class="card-proximo">
-                            <div class="card-header">📅 {row.get('Fecha', '')} | {row.get('Evento', 'Evento')} ({row.get('Tipo', '')})</div>
-                            <div class="card-sub"><b>⏰ Hora:</b> {row.get('Hora', 'N/A')} | <b>Citación:</b> {row.get('Hora_Invitacion', 'N/A')}</div>
-                            <div class="card-sub"><b>👤 Cliente:</b> {row.get('Cliente', 'N/A')} | <b>📱 Tel:</b> {row.get('Telefono', 'N/A')}</div>
-                            <div class="card-sub"><b>📍 Dirección:</b> {row.get('Direccion', 'N/A')}</div>
-                            <div class="card-sub"><b>💰 Total:</b> S/ {row.get('Costo_Total', '0')} | <b>Estado:</b> {row.get('Estado_Pago', 'N/A')}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                else:
-                    st.info("No hay eventos registrados dentro de los próximos 3 días.")
-
-            else:
-                df_futuros = df_copia.sort_values("Fecha_Clean", ascending=True)
-
-                st.markdown("### 📅 Todos los Eventos Agendados")
-                if not df_futuros.empty:
-                    for _, row in df_futuros.iterrows():
-                        st.markdown(f"""
-                        <div class="card-proximo">
-                            <div class="card-header">📅 {row.get('Fecha', '')} | {row.get('Evento', 'Evento')} ({row.get('Tipo', '')})</div>
-                            <div class="card-sub"><b>⏰ Hora:</b> {row.get('Hora', 'N/A')} | <b>Citación:</b> {row.get('Hora_Invitacion', 'N/A')}</div>
-                            <div class="card-sub"><b>👤 Cliente:</b> {row.get('Cliente', 'N/A')} | <b>📱 Tel:</b> {row.get('Telefono', 'N/A')}</div>
-                            <div class="card-sub"><b>📍 Dirección:</b> {row.get('Direccion', 'N/A')}</div>
-                            <div class="card-sub"><b>💰 Total:</b> S/ {row.get('Costo_Total', '0')} | <b>Estado:</b> {row.get('Estado_Pago', 'N/A')}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                else:
-                    st.warning("No se encontraron registros en Google Sheets.")
-        else:
-            st.info("No hay datos guardados aún en la base de datos.")
-
-    # =========================================================
-    # 2. PESTAÑA: FILTRO
-    # =========================================================
-    with tab_filtro:
-        st.subheader("🔍 Filtros Personalizados")
-        
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            filtro_texto = st.text_input("Buscar por texto:")
-        with c2:
-            opciones_estado = ["Todos"] + list(df["Estado_Pago"].unique()) if not df.empty and "Estado_Pago" in df.columns else ["Todos"]
-            filtro_estado = st.selectbox("Estado de Pago:", opciones_estado)
-        with c3:
-            opciones_tipo = ["Todos"] + list(df["Tipo"].unique()) if not df.empty and "Tipo" in df.columns else ["Todos"]
-            filtro_tipo = st.selectbox("Tipo de Servicio:", opciones_tipo)
-
-        df_filtrado = df.copy()
-
-        if filtro_texto and not df_filtrado.empty:
-            mask = df_filtrado.apply(lambda row: row.astype(str).str.contains(filtro_texto, case=False).any(), axis=1)
-            df_filtrado = df_filtrado[mask]
-
-        if filtro_estado != "Todos":
-            df_filtrado = df_filtrado[df_filtrado["Estado_Pago"] == filtro_estado]
-
-        if filtro_tipo != "Todos":
-            df_filtrado = df_filtrado[df_filtrado["Tipo"] == filtro_tipo]
-
-        st.write(f"**Coincidencias:** {len(df_filtrado)}")
-        st.dataframe(df_filtrado, use_container_width=True)
-
-    # =========================================================
-    # 3. PESTAÑA: NUEVO
-    # =========================================================
-    with tab_nuevo:
-        st.subheader("➕ Llenar Servicio")
-        
-        fecha_input = st.date_input("1. Fecha del Servicio", datetime.now())
-        fecha_str = fecha_input.strftime("%Y-%m-%d")
-
-        tipo_servicio = st.selectbox("2. Tipo de Servicio", ["Show", "Decoración", "Show + Decoración", "Alquiler"])
-
-        st.markdown("---")
-
-        with st.form("form_servicio", clear_on_submit=True):
-            
-            nombre_evento = ""
-            hora_contrato_str = ""
-            hora_invitacion_str = ""
-            agregar_alquiler = "No"
-            concepto_alquiler = ""
-            monto_alquiler = 0
-
-            if tipo_servicio == "Alquiler":
-                col1, col2 = st.columns(2)
-                with col1:
-                    concepto_alquiler = st.text_input("Concepto de Alquiler", placeholder="ej. Sillas, Toldo, Luces")
-                    
-                    col_h1, col_h2 = st.columns([2, 1])
-                    with col_h1:
-                        h_raw = st.text_input("Hora de Entrega", placeholder="ej. 03 o 03:30")
-                    with col_h2:
-                        h_ampm = st.selectbox("Formato", ["PM", "AM"], key="ampm1")
-                    hora_contrato_str = formatear_hora(h_raw, h_ampm)
-                    
-                    direccion = st.text_input("Dirección de Entrega")
-
-                with col2:
-                    cliente = st.text_input("Nombre del Cliente")
-                    telefono = st.text_input("Teléfono del Cliente")
-                    nombre_evento = f"Alquiler - {concepto_alquiler}" if concepto_alquiler else "Alquiler"
-                    hora_invitacion_str = hora_contrato_str
-
-            else:
-                col1, col2 = st.columns(2)
-                with col1:
-                    nombre_evento = st.text_input("Nombre del Evento", placeholder="ej. Cumpleaños de Gia")
-                    
-                    col_hc1, col_hc2 = st.columns([2, 1])
-                    with col_hc1:
-                        hc_raw = st.text_input("Hora Contrato / Inicio Show", placeholder="ej. 04 o 04:30")
-                    with col_hc2:
-                        hc_ampm = st.selectbox("Formato", ["PM", "AM"], key="ampm_hc")
-                    hora_contrato_str = formatear_hora(hc_raw, hc_ampm)
-
-                    col_hi1, col_hi2 = st.columns([2, 1])
-                    with col_hi1:
-                        hi_raw = st.text_input("Hora Citación / Invitación", placeholder="ej. 03 o 03:30")
-                    with col_hi2:
-                        hi_ampm = st.selectbox("Formato", ["PM", "AM"], key="ampm_hi")
-                    hora_invitacion_str = formatear_hora(hi_raw, hi_ampm)
-
-                    direccion = st.text_input("Dirección del Evento")
-
-                with col2:
-                    cliente = st.text_input("Nombre del Cliente")
-                    telefono = st.text_input("Teléfono del Cliente")
-                    agregar_alquiler = st.radio("¿Agregar Alquiler adicional?", ["No", "Sí"], horizontal=True)
-
-                if agregar_alquiler == "Sí":
-                    st.markdown("##### 📦 Detalles del Alquiler Agregado")
-                    col_alq1, col_alq2 = st.columns(2)
-                    with col_alq1:
-                        concepto_alquiler = st.text_input("Concepto del Alquiler Agregado", placeholder="ej. Luces, Sillas")
-                    with col_alq2:
-                        monto_alquiler = st.number_input("Monto del Alquiler Agregado (S/)", min_value=0, step=1, value=0)
-
-            st.markdown("---")
-            st.markdown("### 💰 Información de Pago (en Soles S/)")
-
-            col_p1, col_p2, col_p3 = st.columns(3)
-            with col_p1:
-                costo_total = st.number_input("Costo Total del Servicio (S/)", min_value=0, step=1, value=0)
-
-            with col_p2:
-                estado_pago = st.selectbox("Estado de Pago", ["Adelanto parcial", "Pago completo", "Pendiente"])
-
-            monto_adelanto = 0
-            monto_pendiente = 0
-
-            with col_p3:
-                if estado_pago == "Adelanto parcial":
-                    monto_adelanto = st.number_input("Monto de Adelanto (S/)", min_value=0, max_value=int(costo_total) if costo_total > 0 else 99999, step=1, value=0)
-                    monto_pendiente = max(0, int(costo_total) - int(monto_adelanto))
-                    st.info(f"💵 **Pago Pendiente:** S/ {monto_pendiente}")
-                elif estado_pago == "Pago completo":
-                    monto_adelanto = int(costo_total)
-                    st.success("✅ Servicio cancelado completo.")
-                else:
-                    monto_adelanto = 0
-                    st.warning(f"⚠️ Saldo pendiente: S/ {costo_total}")
-
-            st.markdown("---")
-            descripcion = st.text_area("📝 Detalles / Observaciones Adicionales", placeholder="Escribe aquí detalles adicionales...")
-
-            btn_guardar = st.form_submit_button("💾 Guardar Servicio", use_container_width=True)
-
-            if btn_guardar:
-                if not GOOGLE_SCRIPT_URL:
-                    st.error("⚠️ Falta configurar GOOGLE_SCRIPT_URL en los secretos.")
-                else:
-                    desglose_partes = []
-                    if tipo_servicio != "Alquiler":
-                        desglose_partes.append(f"{tipo_servicio}: S/ {costo_total - monto_alquiler}")
-                    if concepto_alquiler:
-                        desglose_partes.append(f"Alquiler: S/ {monto_alquiler} ({concepto_alquiler})")
-                    
-                    desglose_str = " | ".join(desglose_partes) if desglose_partes else f"S/ {costo_total}"
-
-                    payload = {
-                        "Fecha": fecha_str,
-                        "Tipo": tipo_servicio if agregar_alquiler == "No" or tipo_servicio == "Alquiler" else f"{tipo_servicio} + Alquiler",
-                        "Evento": nombre_evento if nombre_evento else "Evento",
-                        "Hora": hora_contrato_str,
-                        "Direccion": direccion,
-                        "Hora_Invitacion": hora_invitacion_str,
-                        "Cliente": cliente,
-                        "Telefono": telefono,
-                        "Costo_Total": str(int(costo_total)),
-                        "Monto_Adelanto": str(int(monto_adelanto)),
-                        "Estado_Pago": estado_pago,
-                        "Descripcion": descripcion if descripcion else "Sin descripción",
-                        "Desglose_Costos": desglose_str,
-                        "Concepto_Alquiler": concepto_alquiler if concepto_alquiler else "N/A"
-                    }
-
-                    try:
-                        res = requests.post(GOOGLE_SCRIPT_URL, data=json.dumps(payload))
-                        if res.status_code == 200:
-                            st.success("🎉 ¡El servicio fue guardado con éxito!")
-                            st.cache_data.clear()
-                            st.rerun()
-                        else:
-                            st.error(f"Error HTTP {res.status_code} al guardar en Google Sheets.")
-                    except Exception as e:
-                        st.error(f"Error de conexión: {e}")
+                    st.error(f"❌ Error al guardar. Código: {response.status_code}")
+            except Exception as e:
+                st.error(f"❌ Ocurrió un error al conectar con Google Sheets: {e}")
+                
