@@ -8,44 +8,36 @@ from datetime import datetime, timedelta
 # Configuración de la página
 st.set_page_config(page_title="Agenda Madai", page_icon="📅", layout="centered")
 
-# Estilos CSS para obligar a que las columnas de hora NO se apilen en móviles
+# Estilos CSS
 st.markdown("""
 <style>
-    /* Evitar scroll horizontal global */
+    /* Bloqueo de scroll horizontal */
     html, body, [data-testid="stAppViewContainer"], .main {
         overflow-x: hidden !important;
     }
     .main .block-container {
         padding-top: 0.5rem !important;
         padding-bottom: 0.5rem !important;
-        padding-left: 0.5rem !important;
-        padding-right: 0.5rem !important;
+        padding-left: 0.6rem !important;
+        padding-right: 0.6rem !important;
         max-width: 100% !important;
     }
 
-    /* Reducir espacio vertical entre elementos */
+    /* Reducir espacio vertical entre campos */
     div[data-testid="stVerticalBlock"] > div {
         margin-bottom: -10px !important;
         padding-bottom: 0px !important;
     }
 
-    /* FORZAR que las sub-columnas de horas NO se apilen en pantallas móviles */
+    /* Alineación de textos de ejemplo e inputs a la izquierda */
+    div[data-testid="stTextInput"] input {
+        text-align: left !important;
+        padding-left: 10px !important;
+    }
+
+    /* Forzar que las columnas de hora permanezcan en la misma fila (sin romperse) */
     div[data-testid="column"] {
         min-width: 0px !important;
-    }
-
-    .time-row {
-        display: flex !important;
-        flex-direction: row !important;
-        align-items: center !important;
-        gap: 6px !important;
-        width: 100% !important;
-    }
-
-    /* Reducir márgenes internos de inputs de hora */
-    div[data-testid="stTextInput"] input {
-        text-align: center !important;
-        padding: 4px 6px !important;
     }
 
     /* Tarjetas de eventos */
@@ -239,34 +231,30 @@ else:
             st.dataframe(df_filtrado, use_container_width=True)
 
     # =========================================================
-    # 3. PESTAÑA: NUEVO (HORAS OBLIGADAS LADO A LADO EN MÓVIL)
+    # 3. PESTAÑA: NUEVO (DISEÑO 100% VERTICAL CON HORA Y AM/PM AL COSTADO)
     # =========================================================
     with tab_nuevo:
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            fecha_input = st.date_input("📅 Fecha", datetime.now())
-            fecha_str = fecha_input.strftime("%Y-%m-%d")
-        with col_f2:
-            tipo_servicio = st.selectbox("🎭 Servicio", ["Show", "Decoración", "Show + Decoración", "Alquiler"])
+        fecha_input = st.date_input("📅 Fecha", datetime.now())
+        fecha_str = fecha_input.strftime("%Y-%m-%d")
 
-        col_e1, col_e2 = st.columns(2)
-        with col_e1:
-            nombre_evento = st.text_input("🎉 Evento", placeholder="ej. Cumpleaños Gia")
-        with col_e2:
-            cliente = st.text_input("👤 Cliente", placeholder="ej. María López")
+        tipo_servicio = st.selectbox("🎭 Servicio", ["Show", "Decoración", "Show + Decoración", "Alquiler"])
 
-        # HORA CONTRATO (FORZADA EN 1 SOLA FILA)
+        nombre_evento = st.text_input("🎉 Evento", placeholder="ej. Cumpleaños Gia")
+
+        cliente = st.text_input("👤 Cliente", placeholder="ej. María López")
+
+        # HORA CONTRATO (Entrada larga + Cuadro pequeño AM/PM al costado)
         st.caption("⏰ **Hora Contrato**")
-        c1, c2 = st.columns([2, 1])
+        c1, c2 = st.columns([3.5, 1.2])
         with c1:
             h_contrato_val = st.text_input("HC", value="04:00", key="hc_val", label_visibility="collapsed")
         with c2:
             ampm_contrato = st.selectbox("AP1", ["PM", "AM"], key="hc_ap", label_visibility="collapsed")
         hora_contrato_str = f"{h_contrato_val.strip()} {ampm_contrato}"
 
-        # HORA CITACIÓN (FORZADA EN 1 SOLA FILA)
+        # HORA CITACIÓN (Entrada larga + Cuadro pequeño AM/PM al costado)
         st.caption("📩 **Hora Citación**")
-        c3, c4 = st.columns([2, 1])
+        c3, c4 = st.columns([3.5, 1.2])
         with c3:
             h_citacion_val = st.text_input("HI", value="04:00", key="hi_val", label_visibility="collapsed")
         with c4:
@@ -275,32 +263,23 @@ else:
 
         direccion = st.text_input("📍 Dirección", placeholder="ej. Av. Las Flores 123")
 
-        col_t1, col_t2 = st.columns(2)
-        with col_t1:
-            telefono = st.text_input("📱 Teléfono", placeholder="ej. 987654321")
-        with col_t2:
-            agregar_alquiler = st.radio("📦 ¿Alquiler?", ["No", "Sí"], horizontal=True)
+        telefono = st.text_input("📱 Teléfono", placeholder="ej. 987654321")
+
+        agregar_alquiler = st.radio("📦 ¿Alquiler?", ["No", "Sí"], horizontal=True)
 
         concepto_alquiler = ""
         monto_alquiler = 0
         if agregar_alquiler == "Sí" or tipo_servicio == "Alquiler":
-            col_alq1, col_alq2 = st.columns(2)
-            with col_alq1:
-                concepto_alquiler = st.text_input("Concepto Alquiler", placeholder="ej. Luces, Toldo")
-            with col_alq2:
-                monto_alquiler = st.number_input("Monto Alquiler (S/)", min_value=0, step=1, value=0)
+            concepto_alquiler = st.text_input("Concepto Alquiler", placeholder="ej. Luces, Toldo")
+            monto_alquiler = st.number_input("Monto Alquiler (S/)", min_value=0, step=1, value=0)
 
         costo_total = 0
         costo_show = 0
         costo_deco = 0
 
         if tipo_servicio == "Show + Decoración":
-            col_sd1, col_sd2 = st.columns(2)
-            with col_sd1:
-                costo_show = st.number_input("Show (S/)", min_value=0, step=1, value=0, key="c_show")
-            with col_sd2:
-                costo_deco = st.number_input("Decoración (S/)", min_value=0, step=1, value=0, key="c_deco")
-
+            costo_show = st.number_input("Show (S/)", min_value=0, step=1, value=0, key="c_show")
+            costo_deco = st.number_input("Decoración (S/)", min_value=0, step=1, value=0, key="c_deco")
             costo_total = costo_show + costo_deco + monto_alquiler
         elif tipo_servicio in ["Show", "Decoración"]:
             costo_base = st.number_input(f"Costo {tipo_servicio} (S/)", min_value=0, step=1, value=0, key="c_base")
@@ -308,20 +287,17 @@ else:
         else:
             costo_total = monto_alquiler
 
-        col_p1, col_p2 = st.columns(2)
-        with col_p1:
-            monto_adelanto = st.number_input("Adelanto (S/)", min_value=0, step=1, value=0, key="c_adelanto")
+        monto_adelanto = st.number_input("Adelanto (S/)", min_value=0, step=1, value=0, key="c_adelanto")
 
         monto_pendiente = max(0, int(costo_total) - int(monto_adelanto))
 
-        with col_p2:
-            st.caption("Estado de Pago")
-            if monto_pendiente == 0 and costo_total > 0:
-                st.success("✅ CANCELADO")
-                estado_pago = "Pago completo"
-            else:
-                st.warning(f"💵 PENDIENTE: S/ {monto_pendiente}")
-                estado_pago = "Pago parcial"
+        st.caption("Estado de Pago")
+        if monto_pendiente == 0 and costo_total > 0:
+            st.success("✅ CANCELADO")
+            estado_pago = "Pago completo"
+        else:
+            st.warning(f"💵 PENDIENTE: S/ {monto_pendiente}")
+            estado_pago = "Pago parcial"
 
         descripcion = st.text_area("📝 Observaciones", placeholder="Detalles adicionales...")
 
