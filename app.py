@@ -7,21 +7,15 @@ import base64
 from datetime import datetime, timedelta
 
 # Configuración de la página
-st.set_page_config(page_title="Madai", page_icon="📅", layout="centered")
+st.set_page_config(page_title="Agenda Madai", page_icon="📅", layout="centered")
 
 # Función para convertir imágenes locales a Base64
 def obtener_base64_de_archivo(ruta_imagen):
     if os.path.exists(ruta_imagen):
         with open(ruta_imagen, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
-        # Detectar extensión automáticamente
         extension = ruta_imagen.split('.')[-1].lower()
-        if extension in ['jpg', 'jpeg']:
-            mime = 'image/jpeg'
-        elif extension == 'png':
-            mime = 'image/png'
-        else:
-            mime = f'image/{extension}'
+        mime = 'image/png' if extension == 'png' else 'image/jpeg'
         return f"data:{mime};base64,{encoded_string}"
     return None
 
@@ -29,12 +23,12 @@ def obtener_base64_de_archivo(ruta_imagen):
 imagen_fondo_b64 = obtener_base64_de_archivo("fondo.jpeg")
 imagen_logo_b64 = obtener_base64_de_archivo("logo.jpeg")
 
-# Configurar CSS dinámico para el fondo
+# Configurar CSS para fondo con menor contraste y textos legibles
 css_fondo = ""
 if imagen_fondo_b64:
     css_fondo = f"""
     .stApp {{
-        background-image: url("{imagen_fondo_b64}");
+        background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url("{imagen_fondo_b64}");
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
@@ -46,36 +40,56 @@ st.markdown(f"""
 <style>
     {css_fondo}
 
-    /* Fondo semitransparente sobre el contenido para lecturas claras */
+    /* Fondo contenedor principal para garantizar contraste */
     [data-testid="stAppViewContainer"] > .main {{
-        background-color: rgba(255, 255, 255, 0.88) !important;
+        background-color: rgba(255, 255, 255, 0.85) !important;
+        border-radius: 12px;
+        padding: 15px !important;
+        margin-top: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }}
 
-    /* Estilo del encabezado (Logo + Título unidos) */
+    /* Encabezado: Logo y Título "Agenda Madai" */
     .header-container {{
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-bottom: 10px;
+        margin-bottom: 15px;
     }}
     
     .header-logo {{
-        width: 60px;
-        height: 60px;
+        width: 65px;
+        height: 65px;
         object-fit: contain;
-        border-radius: 8px;
+        border-radius: 50%;
+        border: 2px solid #FFF;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }}
 
     .header-title {{
-        font-size: 38px;
-        font-weight: 800;
-        background: linear-gradient(45deg, #FF1493, #FF69B4, #8A2BE2, #00BFFF);
+        font-size: 34px;
+        font-weight: 900;
+        background: linear-gradient(45deg, #FF007F, #FFD700, #00E5FF);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin: 0;
         padding: 0;
-        line-height: 1;
-        letter-spacing: 1px;
+        line-height: 1.1;
+        letter-spacing: 0.5px;
+        filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.8));
+    }}
+
+    /* Estilo de textos del sistema para resaltar sobre el fondo */
+    label, .stRadio label, p, .stMarkdown {{
+        color: #111111 !important;
+        font-weight: 600 !important;
+    }}
+
+    /* Cajas informativas e inputs */
+    .stAlert {{
+        background-color: rgba(255, 255, 255, 0.95) !important;
+        border-radius: 8px !important;
+        border-left: 5px solid #2196F3 !important;
     }}
 
     /* Bloqueo de scroll horizontal */
@@ -90,59 +104,61 @@ st.markdown(f"""
         max-width: 100% !important;
     }}
 
-    /* Reducir espacio vertical entre campos */
+    /* Reducir espacio vertical */
     div[data-testid="stVerticalBlock"] > div {{
-        margin-bottom: -10px !important;
+        margin-bottom: -6px !important;
         padding-bottom: 0px !important;
     }}
 
-    /* Alineación de textos de ejemplo e inputs a la izquierda */
     div[data-testid="stTextInput"] input {{
         text-align: left !important;
         padding-left: 10px !important;
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
     }}
 
-    /* Forzar que las columnas de hora permanezcan en la misma fila */
     div[data-testid="column"] {{
         min-width: 0px !important;
     }}
 
-    /* Tarjetas de eventos */
+    /* Tarjetas de eventos con sombra y contraste alto */
     .card-hoy {{
-        background-color: rgba(232, 245, 233, 0.95);
-        border-left: 5px solid #2E7D32;
-        padding: 8px;
-        border-radius: 6px;
-        margin-bottom: 6px;
+        background-color: rgba(255, 255, 255, 0.95);
+        border-left: 6px solid #2E7D32;
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 8px;
         color: #1B5E20;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.15);
     }}
     .card-proximo {{
-        background-color: rgba(227, 242, 253, 0.95);
-        border-left: 5px solid #1565C0;
-        padding: 8px;
-        border-radius: 6px;
-        margin-bottom: 6px;
+        background-color: rgba(255, 255, 255, 0.95);
+        border-left: 6px solid #1565C0;
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 8px;
         color: #0D47A1;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.15);
     }}
     .card-header {{
-        font-size: 14px;
+        font-size: 15px;
         font-weight: bold;
-        margin-bottom: 2px;
+        margin-bottom: 3px;
     }}
     .card-sub {{
-        font-size: 12px;
-        color: #333333;
+        font-size: 13px;
+        color: #222222;
         margin-bottom: 2px;
     }}
 </style>
 """, unsafe_allow_html=True)
 
-# Encabezado: Logo pegado a la izquierda del título "Madai"
+# Encabezado: Logo + Título Agenda Madai
 html_logo = f'<img src="{imagen_logo_b64}" class="header-logo">' if imagen_logo_b64 else ''
 st.markdown(f"""
 <div class="header-container">
     {html_logo}
-    <h1 class="header-title">Madai</h1>
+    <h1 class="header-title">Agenda Madai</h1>
 </div>
 """, unsafe_allow_html=True)
 
