@@ -225,14 +225,21 @@ else:
 
         if not df.empty and "Fecha" in df.columns:
             df_copia = df.copy()
+
+            # 1. Limpiar espacios en blanco al inicio o final de las celdas de fecha
+            df_copia["Fecha"] = df_copia["Fecha"].astype(str).str.strip()
+
+            # 2. Conversión flexible de fechas (soporta YYYY-MM-DD, DD/MM/YYYY, etc.)
             df_copia["Fecha_Parsed"] = pd.to_datetime(df_copia["Fecha"], errors="coerce", dayfirst=True)
             
             mask_nat = df_copia["Fecha_Parsed"].isna()
             if mask_nat.any():
                 df_copia.loc[mask_nat, "Fecha_Parsed"] = pd.to_datetime(df_copia.loc[mask_nat, "Fecha"], errors="coerce")
 
+            # 3. Formato estandarizado YYYY-MM-DD para comparar
             df_copia["Fecha_Clean"] = df_copia["Fecha_Parsed"].dt.strftime("%Y-%m-%d")
 
+            # Fecha actual
             hoy_dt = datetime.now()
             hoy_str = hoy_dt.strftime("%Y-%m-%d")
 
@@ -243,7 +250,12 @@ else:
             )
 
             if modo_vista == "Eventos del día (Hoy)":
+                # Filtro estricto por la fecha de hoy
                 df_hoy = df_copia[df_copia["Fecha_Clean"] == hoy_str]
+
+                # Si no lo encuentra por fecha limpia, busca coincidencia parcial de texto en la celda original
+                if df_hoy.empty:
+                    df_hoy = df_copia[df_copia["Fecha"].str.contains(hoy_str, na=False)]
 
                 if not df_hoy.empty:
                     for _, row in df_hoy.iterrows():
