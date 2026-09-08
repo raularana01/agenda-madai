@@ -23,12 +23,12 @@ def obtener_base64_de_archivo(ruta_imagen):
 imagen_fondo_b64 = obtener_base64_de_archivo("fondo.jpeg")
 imagen_logo_b64 = obtener_base64_de_archivo("logo.jpeg")
 
-# Configurar CSS para fondo con menor contraste y textos legibles
+# Configurar CSS para fondo atenuado y compatibilidad con modo claro/oscuro
 css_fondo = ""
 if imagen_fondo_b64:
     css_fondo = f"""
     .stApp {{
-        background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url("{imagen_fondo_b64}");
+        background-image: linear-gradient(rgba(0, 0, 0, 0.40), rgba(0, 0, 0, 0.40)), url("{imagen_fondo_b64}");
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
@@ -40,56 +40,59 @@ st.markdown(f"""
 <style>
     {css_fondo}
 
-    /* Fondo contenedor principal para garantizar contraste */
+    /* Contenedor principal que se adapta al modo claro/oscuro de móviles */
     [data-testid="stAppViewContainer"] > .main {{
-        background-color: rgba(255, 255, 255, 0.85) !important;
+        background-color: rgba(255, 255, 255, 0.90) !important;
         border-radius: 12px;
-        padding: 15px !important;
+        padding: 12px !important;
         margin-top: 10px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
     }}
 
-    /* Encabezado: Logo y Título "Agenda Madai" */
+    /* Header unido: Logo + Título "Agenda Madai" */
     .header-container {{
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-bottom: 15px;
+        margin-bottom: 12px;
     }}
     
     .header-logo {{
-        width: 65px;
-        height: 65px;
+        width: 60px;
+        height: 60px;
         object-fit: contain;
         border-radius: 50%;
-        border: 2px solid #FFF;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        border: 2px solid #FFFFFF;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.4);
     }}
 
     .header-title {{
-        font-size: 34px;
+        font-size: 32px;
         font-weight: 900;
-        background: linear-gradient(45deg, #FF007F, #FFD700, #00E5FF);
+        background: linear-gradient(45deg, #FF007F, #FF8C00, #00E5FF);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin: 0;
         padding: 0;
         line-height: 1.1;
         letter-spacing: 0.5px;
-        filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.8));
+        filter: drop-shadow(2px 2px 3px rgba(0, 0, 0, 0.8));
     }}
 
-    /* Estilo de textos del sistema para resaltar sobre el fondo */
-    label, .stRadio label, p, .stMarkdown {{
-        color: #111111 !important;
+    /* Estilo para que TODOS los textos resalten tanto en tema claro como en tema oscuro */
+    label, p, span, div, .stMarkdown, .stRadio label {{
+        color: #0d0d0d !important;
+        font-weight: 700 !important;
+        text-shadow: 0px 0px 2px rgba(255, 255, 255, 0.8);
+    }}
+
+    /* Inputs y Selects con fondo neutro fijo para evitar conflictos de modo oscuro */
+    div[data-testid="stTextInput"] input, div[data-testid="stNumberInput"] input, div[data-testid="stSelectbox"] select {{
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+        border: 1px solid #CCCCCC !important;
+        border-radius: 6px !important;
         font-weight: 600 !important;
-    }}
-
-    /* Cajas informativas e inputs */
-    .stAlert {{
-        background-color: rgba(255, 255, 255, 0.95) !important;
-        border-radius: 8px !important;
-        border-left: 5px solid #2196F3 !important;
     }}
 
     /* Bloqueo de scroll horizontal */
@@ -99,51 +102,45 @@ st.markdown(f"""
     .main .block-container {{
         padding-top: 0.5rem !important;
         padding-bottom: 0.5rem !important;
-        padding-left: 0.6rem !important;
-        padding-right: 0.6rem !important;
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
         max-width: 100% !important;
     }}
 
-    /* Reducir espacio vertical */
+    /* Espaciado vertical reducido */
     div[data-testid="stVerticalBlock"] > div {{
         margin-bottom: -6px !important;
         padding-bottom: 0px !important;
-    }}
-
-    div[data-testid="stTextInput"] input {{
-        text-align: left !important;
-        padding-left: 10px !important;
-        background-color: #FFFFFF !important;
-        color: #000000 !important;
     }}
 
     div[data-testid="column"] {{
         min-width: 0px !important;
     }}
 
-    /* Tarjetas de eventos con sombra y contraste alto */
+    /* Tarjetas de eventos */
     .card-hoy {{
-        background-color: rgba(255, 255, 255, 0.95);
+        background-color: #FFFFFF;
         border-left: 6px solid #2E7D32;
         padding: 10px;
         border-radius: 8px;
         margin-bottom: 8px;
         color: #1B5E20;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }}
     .card-proximo {{
-        background-color: rgba(255, 255, 255, 0.95);
+        background-color: #FFFFFF;
         border-left: 6px solid #1565C0;
         padding: 10px;
         border-radius: 8px;
         margin-bottom: 8px;
         color: #0D47A1;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }}
     .card-header {{
         font-size: 15px;
         font-weight: bold;
         margin-bottom: 3px;
+        color: #000000;
     }}
     .card-sub {{
         font-size: 13px;
@@ -153,7 +150,7 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# Encabezado: Logo + Título Agenda Madai
+# Encabezado: Logo + Título
 html_logo = f'<img src="{imagen_logo_b64}" class="header-logo">' if imagen_logo_b64 else ''
 st.markdown(f"""
 <div class="header-container">
