@@ -72,6 +72,10 @@ st.markdown("""
 
 st.title("📅 Agenda Virtual Madai")
 
+# Control de pestaña activa mediante session_state
+if "pestaña_activa" not in st.session_state:
+    st.session_state["pestaña_activa"] = "Eventos"
+
 # Cargar variables de secretos
 GOOGLE_SHEET_URL = st.secrets.get("GOOGLE_SHEET_URL", os.environ.get("GOOGLE_SHEET_URL", ""))
 GOOGLE_SCRIPT_URL = st.secrets.get("GOOGLE_SCRIPT_URL", os.environ.get("GOOGLE_SCRIPT_URL", ""))
@@ -104,12 +108,24 @@ if not GOOGLE_SHEET_URL:
 else:
     df = cargar_datos(GOOGLE_SHEET_URL)
 
-    tab_eventos, tab_filtro, tab_nuevo = st.tabs(["Eventos", "Filtro", "Nuevo"])
+    # Definir pestañas con st.radio o botones dinámicos para poder cambiarlas programáticamente
+    opcion_tab = st.radio(
+        "Menú de navegación",
+        ["Eventos", "Filtro", "Nuevo"],
+        index=["Eventos", "Filtro", "Nuevo"].index(st.session_state["pestaña_activa"]),
+        key="navegacion_tabs",
+        horizontal=True,
+        label_visibility="collapsed"
+    )
+    st.session_state["pestaña_activa"] = opcion_tab
 
     # =========================================================
-    # 1. PESTAÑA: EVENTOS
+    # 1. PESTAÑA: EVENTOS (MENÚ DE INICIO)
     # =========================================================
-    with tab_eventos:
+    if st.session_state["pestaña_activa"] == "Eventos":
+        if "mensaje_exito" in st.session_state:
+            st.success(st.session_state.pop("mensaje_exito"))
+
         if not df.empty and "Fecha" in df.columns:
             df_copia = df.copy()
             df_copia["Fecha_Parsed"] = pd.to_datetime(df_copia["Fecha"], errors="coerce", dayfirst=True)
@@ -186,7 +202,7 @@ else:
     # =========================================================
     # 2. PESTAÑA: FILTRO
     # =========================================================
-    with tab_filtro:
+    elif st.session_state["pestaña_activa"] == "Filtro":
         st.subheader("🔍 Búsqueda y Filtros")
         
         filtro_cliente = st.text_input("👤 Cliente / Nombre del Evento:", placeholder="Buscar por cliente o evento...")
@@ -231,9 +247,9 @@ else:
             st.dataframe(df_filtrado, use_container_width=True)
 
     # =========================================================
-    # 3. PESTAÑA: NUEVO (DISEÑO 100% VERTICAL CON HORA Y AM/PM AL COSTADO)
+    # 3. PESTAÑA: NUEVO (FORMULARIO)
     # =========================================================
-    with tab_nuevo:
+    elif st.session_state["pestaña_activa"] == "Nuevo":
         fecha_input = st.date_input("📅 Fecha", datetime.now())
         fecha_str = fecha_input.strftime("%Y-%m-%d")
 
@@ -243,7 +259,7 @@ else:
 
         cliente = st.text_input("👤 Cliente", placeholder="ej. María López")
 
-        # HORA CONTRATO (Entrada larga + Cuadro pequeño AM/PM al costado)
+        # HORA CONTRATO
         st.caption("⏰ **Hora Contrato**")
         c1, c2 = st.columns([3.5, 1.2])
         with c1:
@@ -252,7 +268,7 @@ else:
             ampm_contrato = st.selectbox("AP1", ["PM", "AM"], key="hc_ap", label_visibility="collapsed")
         hora_contrato_str = f"{h_contrato_val.strip()} {ampm_contrato}"
 
-        # HORA CITACIÓN (Entrada larga + Cuadro pequeño AM/PM al costado)
+        # HORA CITACIÓN
         st.caption("📩 **Hora Citación**")
         c3, c4 = st.columns([3.5, 1.2])
         with c3:
@@ -340,8 +356,11 @@ else:
                 try:
                     res = requests.post(GOOGLE_SCRIPT_URL, data=json.dumps(payload))
                     if res.status_code == 200:
-                        st.success("🎉 ¡Servicio guardado con éxito!")
+                        # Limpia la caché de datos
                         st.cache_data.clear()
+                        # Redirige al menú principal (Eventos)
+                        st.session_state["pestaña_activa"] = "Eventos"
+                        st.session_state["mensaje_exito"] = "🎉 ¡Servicio guardado con éxito!"
                         st.rerun()
                     else:
                         st.error(f"Error HTTP {res.status_code}")
