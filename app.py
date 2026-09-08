@@ -3,93 +3,148 @@ import pandas as pd
 import requests
 import json
 import os
+import base64
 from datetime import datetime, timedelta
 
 # Configuración de la página
-st.set_page_config(page_title="Agenda Madai", page_icon="📅", layout="centered")
+st.set_page_config(page_title="Madai", page_icon="📅", layout="centered")
 
-# Estilos CSS incluyendo imagen de fondo y ajustes estéticos
-st.markdown("""
-<style>
-    /* Imagen de fondo desde GitHub */
-    .stApp {
-        background-image: url("https://raw.githubusercontent.com/decoracionesmadai/agenda-madai/main/fondo.jpeg");
+# Función para convertir imágenes locales a Base64
+def obtener_base64_de_archivo(ruta_imagen):
+    if os.path.exists(ruta_imagen):
+        with open(ruta_imagen, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode()
+        # Detectar extensión automáticamente
+        extension = ruta_imagen.split('.')[-1].lower()
+        if extension in ['jpg', 'jpeg']:
+            mime = 'image/jpeg'
+        elif extension == 'png':
+            mime = 'image/png'
+        else:
+            mime = f'image/{extension}'
+        return f"data:{mime};base64,{encoded_string}"
+    return None
+
+# Cargar imágenes en Base64
+imagen_fondo_b64 = obtener_base64_de_archivo("fondo.jpeg")
+imagen_logo_b64 = obtener_base64_de_archivo("logo.jpeg")
+
+# Configurar CSS dinámico para el fondo
+css_fondo = ""
+if imagen_fondo_b64:
+    css_fondo = f"""
+    .stApp {{
+        background-image: url("{imagen_fondo_b64}");
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
         background-attachment: fixed;
-    }
+    }}
+    """
 
-    /* Fondo semitransparente para el contenedor principal para mejorar legibilidad */
-    [data-testid="stAppViewContainer"] > .main {
+st.markdown(f"""
+<style>
+    {css_fondo}
+
+    /* Fondo semitransparente sobre el contenido para lecturas claras */
+    [data-testid="stAppViewContainer"] > .main {{
         background-color: rgba(255, 255, 255, 0.88) !important;
-    }
+    }}
+
+    /* Estilo del encabezado (Logo + Título unidos) */
+    .header-container {{
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 10px;
+    }}
+    
+    .header-logo {{
+        width: 60px;
+        height: 60px;
+        object-fit: contain;
+        border-radius: 8px;
+    }}
+
+    .header-title {{
+        font-size: 38px;
+        font-weight: 800;
+        background: linear-gradient(45deg, #FF1493, #FF69B4, #8A2BE2, #00BFFF);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0;
+        padding: 0;
+        line-height: 1;
+        letter-spacing: 1px;
+    }}
 
     /* Bloqueo de scroll horizontal */
-    html, body, [data-testid="stAppViewContainer"], .main {
+    html, body, [data-testid="stAppViewContainer"], .main {{
         overflow-x: hidden !important;
-    }
-    .main .block-container {
+    }}
+    .main .block-container {{
         padding-top: 0.5rem !important;
         padding-bottom: 0.5rem !important;
         padding-left: 0.6rem !important;
         padding-right: 0.6rem !important;
         max-width: 100% !important;
-    }
+    }}
 
     /* Reducir espacio vertical entre campos */
-    div[data-testid="stVerticalBlock"] > div {
+    div[data-testid="stVerticalBlock"] > div {{
         margin-bottom: -10px !important;
         padding-bottom: 0px !important;
-    }
+    }}
 
     /* Alineación de textos de ejemplo e inputs a la izquierda */
-    div[data-testid="stTextInput"] input {
+    div[data-testid="stTextInput"] input {{
         text-align: left !important;
         padding-left: 10px !important;
-    }
+    }}
 
     /* Forzar que las columnas de hora permanezcan en la misma fila */
-    div[data-testid="column"] {
+    div[data-testid="column"] {{
         min-width: 0px !important;
-    }
+    }}
 
     /* Tarjetas de eventos */
-    .card-hoy {
+    .card-hoy {{
         background-color: rgba(232, 245, 233, 0.95);
         border-left: 5px solid #2E7D32;
         padding: 8px;
         border-radius: 6px;
         margin-bottom: 6px;
         color: #1B5E20;
-    }
-    .card-proximo {
+    }}
+    .card-proximo {{
         background-color: rgba(227, 242, 253, 0.95);
         border-left: 5px solid #1565C0;
         padding: 8px;
         border-radius: 6px;
         margin-bottom: 6px;
         color: #0D47A1;
-    }
-    .card-header {
+    }}
+    .card-header {{
         font-size: 14px;
         font-weight: bold;
         margin-bottom: 2px;
-    }
-    .card-sub {
+    }}
+    .card-sub {{
         font-size: 12px;
         color: #333333;
         margin-bottom: 2px;
-    }
+    }}
 </style>
 """, unsafe_allow_html=True)
 
-# Encabezado con Logo a la izquierda y Título reducido
-col_logo, col_titulo = st.columns([1, 4])
-with col_logo:
-    st.image("logo.jpeg", width=75)
-with col_titulo:
-    st.title("📅 Agenda Madai")
+# Encabezado: Logo pegado a la izquierda del título "Madai"
+html_logo = f'<img src="{imagen_logo_b64}" class="header-logo">' if imagen_logo_b64 else ''
+st.markdown(f"""
+<div class="header-container">
+    {html_logo}
+    <h1 class="header-title">Madai</h1>
+</div>
+""", unsafe_allow_html=True)
 
 # Control del menú mediante session_state
 if "menu_activo" not in st.session_state:
@@ -382,7 +437,6 @@ else:
                     res = requests.post(GOOGLE_SCRIPT_URL, data=json.dumps(payload))
                     if res.status_code == 200:
                         st.cache_data.clear()
-                        # Cambiar la variable de estado para forzar el despliegue del menú Eventos
                         st.session_state["menu_activo"] = "Eventos"
                         st.session_state["mensaje_exito"] = "🎉 ¡Servicio guardado con éxito!"
                         st.rerun()
