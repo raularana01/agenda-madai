@@ -8,53 +8,61 @@ from datetime import datetime, timedelta
 # Configuración de la página
 st.set_page_config(page_title="Agenda Madai", page_icon="📅", layout="centered")
 
-# Estilos CSS para eliminar espacios vacíos entre campos y forzar filas horizontales
+# CSS para evitar scroll horizontal, eliminar espacios vacíos y ajustar campos
 st.markdown("""
 <style>
-    /* Eliminación de márgenes superiores e inferiores de todos los widgets de Streamlit */
-    div[data-testid="stVerticalBlock"] > div {
-        margin-bottom: -10px !important;
-        padding-bottom: 0px !important;
-    }
-    .main .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
-        padding-left: 0.8rem !important;
-        padding-right: 0.8rem !important;
-        max-width: 100% !important;
-    }
-    /* Estructura compacta de las columnas sin apilamiento */
-    [data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        align-items: center !important;
-        gap: 6px !important;
+    /* 1. Control estricto del ancho para evitar scroll horizontal */
+    html, body, [data-testid="stAppViewContainer"] {
+        overflow-x: hidden !important;
     }
     
+    .main .block-container {
+        padding-top: 0.5rem !important;
+        padding-bottom: 0.5rem !important;
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+        max-width: 100% !important;
+    }
+
+    /* 2. Reducción drástica de espacio vertical entre campos */
+    div[data-testid="stVerticalBlock"] > div {
+        margin-bottom: -12px !important;
+        padding-bottom: 0px !important;
+    }
+
+    /* 3. Estilo para los contenedores de hora ultra compactos */
+    .time-box-wrapper {
+        display: flex;
+        flex-direction: row;
+        gap: 4px;
+        align-items: center;
+        width: 100%;
+    }
+
+    /* Tarjetas de eventos */
     .card-hoy {
         background-color: #E8F5E9;
-        border-left: 6px solid #2E7D32;
-        padding: 10px;
-        border-radius: 8px;
+        border-left: 5px solid #2E7D32;
+        padding: 8px;
+        border-radius: 6px;
         margin-bottom: 8px;
         color: #1B5E20;
     }
     .card-proximo {
         background-color: #E3F2FD;
-        border-left: 6px solid #1565C0;
-        padding: 10px;
-        border-radius: 8px;
+        border-left: 5px solid #1565C0;
+        padding: 8px;
+        border-radius: 6px;
         margin-bottom: 8px;
         color: #0D47A1;
     }
     .card-header {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: bold;
-        margin-bottom: 3px;
+        margin-bottom: 2px;
     }
     .card-sub {
-        font-size: 13px;
+        font-size: 12px;
         color: #333333;
         margin-bottom: 2px;
     }
@@ -89,27 +97,6 @@ def cargar_datos(url):
     except Exception as e:
         st.error(f"Error al conectar con Google Sheets: {e}")
         return pd.DataFrame()
-
-# Componente personalizado: Cuadro pequeño para escribir la hora + Selector AM/PM lado a lado
-def selector_hora_manual(label, key_prefix, default_hora="04:00"):
-    st.caption(f"**{label}**")
-    c1, c2 = st.columns([3, 2])
-    with c1:
-        hora_texto = st.text_input(
-            "Hora", 
-            value=default_hora, 
-            key=f"{key_prefix}_txt", 
-            label_visibility="collapsed",
-            placeholder="04:00"
-        )
-    with c2:
-        ampm = st.selectbox(
-            "AMPM", 
-            ["PM", "AM"], 
-            key=f"{key_prefix}_ampm", 
-            label_visibility="collapsed"
-        )
-    return f"{hora_texto.strip()} {ampm}"
 
 if not GOOGLE_SHEET_URL:
     st.warning("⚠️ Configura GOOGLE_SHEET_URL en los secretos de Streamlit.")
@@ -243,35 +230,49 @@ else:
             st.dataframe(df_filtrado, use_container_width=True)
 
     # =========================================================
-    # 3. PESTAÑA: NUEVO (FORMULARIO SIN ESPACIOS EXTRAS)
+    # 3. PESTAÑA: NUEVO (FORMULARIO SIN SCROLL Y HORAS EN UNA FILA)
     # =========================================================
     with tab_nuevo:
-        # Fila 1: Fecha y Tipo de Servicio
+        # Fecha y Tipo de Servicio
         col_f1, col_f2 = st.columns(2)
         with col_f1:
-            fecha_input = st.date_input("📅 Fecha del Servicio", datetime.now())
+            fecha_input = st.date_input("📅 Fecha", datetime.now())
             fecha_str = fecha_input.strftime("%Y-%m-%d")
         with col_f2:
             tipo_servicio = st.selectbox("🎭 Servicio", ["Show", "Decoración", "Show + Decoración", "Alquiler"])
 
-        # Fila 2: Nombre de Evento y Cliente
+        # Nombre de Evento y Cliente
         col_e1, col_e2 = st.columns(2)
         with col_e1:
-            nombre_evento = st.text_input("🎉 Nombre del Evento", placeholder="ej. Cumpleaños de Gia")
+            nombre_evento = st.text_input("🎉 Evento", placeholder="ej. Cumpleaños Gia")
         with col_e2:
-            cliente = st.text_input("👤 Nombre del Cliente", placeholder="ej. María López")
+            cliente = st.text_input("👤 Cliente", placeholder="ej. María López")
 
-        # Fila 3: Horas con entrada de texto + AM/PM lado a lado
+        # SECCIÓN DE HORAS: Contrato y Citación colocadas lado a lado en las dos columnas principales
         col_h1, col_h2 = st.columns(2)
+        
         with col_h1:
-            hora_contrato_str = selector_hora_manual("⏰ Hora Contrato", "h_contrato")
+            st.caption("**⏰ Hora Contrato**")
+            c_txt1, c_sel1 = st.columns([0.6, 0.4])
+            with c_txt1:
+                h_contrato_val = st.text_input("Hora C.", value="04:00", key="h_cnt_t", label_visibility="collapsed")
+            with c_sel1:
+                ampm_contrato = st.selectbox("AMPM C.", ["PM", "AM"], key="h_cnt_ap", label_visibility="collapsed")
+            hora_contrato_str = f"{h_contrato_val.strip()} {ampm_contrato}"
+
         with col_h2:
-            hora_invitacion_str = selector_hora_manual("📩 Hora Citación", "h_citacion")
+            st.caption("**📩 Hora Citación**")
+            c_txt2, c_sel2 = st.columns([0.6, 0.4])
+            with c_txt2:
+                h_citacion_val = st.text_input("Hora I.", value="04:00", key="h_cit_t", label_visibility="collapsed")
+            with c_sel2:
+                ampm_citacion = st.selectbox("AMPM I.", ["PM", "AM"], key="h_cit_ap", label_visibility="collapsed")
+            hora_invitacion_str = f"{h_citacion_val.strip()} {ampm_citacion}"
 
-        # Fila 4: Dirección
-        direccion = st.text_input("📍 Dirección del Evento", placeholder="ej. Av. Las Flores 123")
+        # Dirección
+        direccion = st.text_input("📍 Dirección", placeholder="ej. Av. Las Flores 123")
 
-        # Fila 5: Teléfono y Alquiler
+        # Teléfono y Opción de Alquiler
         col_t1, col_t2 = st.columns(2)
         with col_t1:
             telefono = st.text_input("📱 Teléfono", placeholder="ej. 987654321")
@@ -300,12 +301,12 @@ else:
 
             costo_total = costo_show + costo_deco + monto_alquiler
         elif tipo_servicio in ["Show", "Decoración"]:
-            costo_base = st.number_input(f"Costo Servicio ({tipo_servicio}) (S/)", min_value=0, step=1, value=0, key="c_base")
+            costo_base = st.number_input(f"Costo {tipo_servicio} (S/)", min_value=0, step=1, value=0, key="c_base")
             costo_total = costo_base + monto_alquiler
         else:
             costo_total = monto_alquiler
 
-        # Fila 6: Pagos
+        # Pagos
         col_p1, col_p2 = st.columns(2)
         with col_p1:
             monto_adelanto = st.number_input("Adelanto (S/)", min_value=0, step=1, value=0, key="c_adelanto")
