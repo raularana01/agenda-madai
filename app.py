@@ -8,40 +8,55 @@ from datetime import datetime, timedelta
 # Configuración de la página
 st.set_page_config(page_title="Agenda Madai", page_icon="📅", layout="centered")
 
-# Estilos CSS optimizados para móviles sin scroll lateral
+# Estilos CSS para eliminar espacios vacíos entre campos y forzar filas horizontales
 st.markdown("""
 <style>
+    /* Eliminación de márgenes superiores e inferiores de todos los widgets de Streamlit */
+    div[data-testid="stVerticalBlock"] > div {
+        margin-bottom: -10px !important;
+        padding-bottom: 0px !important;
+    }
     .main .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
         padding-left: 0.8rem !important;
         padding-right: 0.8rem !important;
         max-width: 100% !important;
+    }
+    /* Estructura compacta de las columnas sin apilamiento */
+    [data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        gap: 6px !important;
     }
     
     .card-hoy {
         background-color: #E8F5E9;
         border-left: 6px solid #2E7D32;
-        padding: 12px;
+        padding: 10px;
         border-radius: 8px;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
         color: #1B5E20;
     }
     .card-proximo {
         background-color: #E3F2FD;
         border-left: 6px solid #1565C0;
-        padding: 12px;
+        padding: 10px;
         border-radius: 8px;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
         color: #0D47A1;
     }
     .card-header {
-        font-size: 16px;
+        font-size: 15px;
         font-weight: bold;
-        margin-bottom: 5px;
+        margin-bottom: 3px;
     }
     .card-sub {
         font-size: 13px;
         color: #333333;
-        margin-bottom: 3px;
+        margin-bottom: 2px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -75,24 +90,26 @@ def cargar_datos(url):
         st.error(f"Error al conectar con Google Sheets: {e}")
         return pd.DataFrame()
 
-# Generación automática de lista con formato completo hh:mm AM/PM en un solo cuadro
-HORAS_OPCIONES = []
-for h in range(8, 24):  # Desde 8:00 AM hasta 11:30 PM
-    ampm = "AM" if h < 12 else "PM"
-    h12 = h if h <= 12 else h - 12
-    if h12 == 0:
-        h12 = 12
-    HORAS_OPCIONES.append(f"{h12:02d}:00 {ampm}")
-    HORAS_OPCIONES.append(f"{h12:02d}:30 {ampm}")
-
-# Función que genera solo UN cuadro de selección desplegable
-def selector_hora_unica(label, key, default_index=16):
-    return st.selectbox(
-        label, 
-        options=HORAS_OPCIONES, 
-        index=default_index, 
-        key=key
-    )
+# Componente personalizado: Cuadro pequeño para escribir la hora + Selector AM/PM lado a lado
+def selector_hora_manual(label, key_prefix, default_hora="04:00"):
+    st.caption(f"**{label}**")
+    c1, c2 = st.columns([3, 2])
+    with c1:
+        hora_texto = st.text_input(
+            "Hora", 
+            value=default_hora, 
+            key=f"{key_prefix}_txt", 
+            label_visibility="collapsed",
+            placeholder="04:00"
+        )
+    with c2:
+        ampm = st.selectbox(
+            "AMPM", 
+            ["PM", "AM"], 
+            key=f"{key_prefix}_ampm", 
+            label_visibility="collapsed"
+        )
+    return f"{hora_texto.strip()} {ampm}"
 
 if not GOOGLE_SHEET_URL:
     st.warning("⚠️ Configura GOOGLE_SHEET_URL en los secretos de Streamlit.")
@@ -123,8 +140,6 @@ else:
                 ["Eventos del día (Hoy)", "Próximos 3 días", "Todos los eventos agendados"],
                 horizontal=True
             )
-
-            st.markdown("---")
 
             if modo_vista == "Eventos del día (Hoy)":
                 df_hoy = df_copia[df_copia["Fecha_Clean"] == hoy_str]
@@ -228,7 +243,7 @@ else:
             st.dataframe(df_filtrado, use_container_width=True)
 
     # =========================================================
-    # 3. PESTAÑA: NUEVO (UN SOLO CUADRO DE HORA COMPACTO)
+    # 3. PESTAÑA: NUEVO (FORMULARIO SIN ESPACIOS EXTRAS)
     # =========================================================
     with tab_nuevo:
         # Fila 1: Fecha y Tipo de Servicio
@@ -239,27 +254,22 @@ else:
         with col_f2:
             tipo_servicio = st.selectbox("🎭 Servicio", ["Show", "Decoración", "Show + Decoración", "Alquiler"])
 
-        st.markdown("---")
-
         # Fila 2: Nombre de Evento y Cliente
-        nombre_evento = st.text_input("🎉 Nombre del Evento", placeholder="ej. Cumpleaños de Gia")
-        cliente = st.text_input("👤 Nombre del Cliente", placeholder="ej. María López")
+        col_e1, col_e2 = st.columns(2)
+        with col_e1:
+            nombre_evento = st.text_input("🎉 Nombre del Evento", placeholder="ej. Cumpleaños de Gia")
+        with col_e2:
+            cliente = st.text_input("👤 Nombre del Cliente", placeholder="ej. María López")
 
-        st.markdown("---")
-
-        # Fila 3: Horas lado a lado en un solo cuadro selector cada una
+        # Fila 3: Horas con entrada de texto + AM/PM lado a lado
         col_h1, col_h2 = st.columns(2)
         with col_h1:
-            hora_contrato_str = selector_hora_unica("⏰ Hora Contrato", "h_contrato_single", default_index=16)
+            hora_contrato_str = selector_hora_manual("⏰ Hora Contrato", "h_contrato")
         with col_h2:
-            hora_invitacion_str = selector_hora_unica("📩 Hora Citación", "h_citacion_single", default_index=16)
-
-        st.markdown("---")
+            hora_invitacion_str = selector_hora_manual("📩 Hora Citación", "h_citacion")
 
         # Fila 4: Dirección
         direccion = st.text_input("📍 Dirección del Evento", placeholder="ej. Av. Las Flores 123")
-
-        st.markdown("---")
 
         # Fila 5: Teléfono y Alquiler
         col_t1, col_t2 = st.columns(2)
@@ -271,22 +281,17 @@ else:
         concepto_alquiler = ""
         monto_alquiler = 0
         if agregar_alquiler == "Sí" or tipo_servicio == "Alquiler":
-            st.markdown("##### 📦 Detalles del Alquiler")
             col_alq1, col_alq2 = st.columns(2)
             with col_alq1:
-                concepto_alquiler = st.text_input("Concepto", placeholder="ej. Luces, Toldo")
+                concepto_alquiler = st.text_input("Concepto Alquiler", placeholder="ej. Luces, Toldo")
             with col_alq2:
-                monto_alquiler = st.number_input("Monto (S/)", min_value=0, step=1, value=0)
-
-        st.markdown("---")
-        st.markdown("### 💰 Montos y Pagos")
+                monto_alquiler = st.number_input("Monto Alquiler (S/)", min_value=0, step=1, value=0)
 
         costo_total = 0
         costo_show = 0
         costo_deco = 0
 
         if tipo_servicio == "Show + Decoración":
-            st.info("💡 **Show + Decoración:** Ingresa montos independientes:")
             col_sd1, col_sd2 = st.columns(2)
             with col_sd1:
                 costo_show = st.number_input("Show (S/)", min_value=0, step=1, value=0, key="c_show")
@@ -294,14 +299,13 @@ else:
                 costo_deco = st.number_input("Decoración (S/)", min_value=0, step=1, value=0, key="c_deco")
 
             costo_total = costo_show + costo_deco + monto_alquiler
-            st.markdown(f"**Total:** S/ {costo_total}")
-
         elif tipo_servicio in ["Show", "Decoración"]:
             costo_base = st.number_input(f"Costo Servicio ({tipo_servicio}) (S/)", min_value=0, step=1, value=0, key="c_base")
             costo_total = costo_base + monto_alquiler
         else:
             costo_total = monto_alquiler
 
+        # Fila 6: Pagos
         col_p1, col_p2 = st.columns(2)
         with col_p1:
             monto_adelanto = st.number_input("Adelanto (S/)", min_value=0, step=1, value=0, key="c_adelanto")
@@ -309,7 +313,7 @@ else:
         monto_pendiente = max(0, int(costo_total) - int(monto_adelanto))
 
         with col_p2:
-            st.write("")
+            st.caption("**Estado de Pago**")
             if monto_pendiente == 0 and costo_total > 0:
                 st.success("✅ **CANCELADO**")
                 estado_pago = "Pago completo"
@@ -317,7 +321,6 @@ else:
                 st.warning(f"💵 **PENDIENTE:** S/ {monto_pendiente}")
                 estado_pago = "Pago parcial"
 
-        st.markdown("---")
         descripcion = st.text_area("📝 Observaciones", placeholder="Detalles adicionales...")
 
         if st.button("💾 Guardar Servicio", use_container_width=True, type="primary"):
