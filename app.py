@@ -8,22 +8,9 @@ from datetime import datetime, timedelta
 # Configuración de la página
 st.set_page_config(page_title="Agenda Madai", page_icon="📅", layout="wide")
 
-# Estilos CSS y forzado de diseño en filas
+# Estilos CSS
 st.markdown("""
 <style>
-    /* Forzar diseño horizontal en columnas de formulario */
-    [data-testid="stForm"] [data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        gap: 1rem !important;
-    }
-    
-    [data-testid="stForm"] [data-testid="stHorizontalBlock"] > div {
-        flex: 1 1 0px !important;
-        min-width: 0 !important;
-    }
-
     .card-hoy {
         background-color: #E8F5E9;
         border-left: 6px solid #2E7D32;
@@ -82,17 +69,17 @@ def cargar_datos(url):
         st.error(f"Error al conectar con Google Sheets: {e}")
         return pd.DataFrame()
 
-# Función para construir selector de hora dinámico AM/PM
-def selector_hora_ampm(label, key_prefix, default_hora=4, default_min=0, default_ampm="PM"):
+# Función para selector de hora único (Cuadro único + AM/PM)
+def selector_hora_unica(label, key_prefix):
     st.markdown(f"**{label}**")
-    col_h, col_m, col_p = st.columns([2, 2, 2])
-    with col_h:
-        hora = st.number_input("Hora", min_value=1, max_value=12, value=default_hora, key=f"{key_prefix}_h")
-    with col_m:
-        minuto = st.number_input("Min", min_value=0, max_value=59, value=default_min, step=5, key=f"{key_prefix}_m")
-    with col_p:
-        ampm = st.selectbox("AM/PM", ["AM", "PM"], index=1 if default_ampm == "PM" else 0, key=f"{key_prefix}_p")
-    return f"{hora:02d}:{minuto:02d} {ampm}"
+    c1, c2 = st.columns([3, 2])
+    with c1:
+        hora_val = st.time_input("Seleccionar hora", value=datetime.strptime("04:00", "%H:%M").time(), key=f"{key_prefix}_time", label_visibility="collapsed")
+    with c2:
+        ampm = st.selectbox("Formato", ["PM", "AM"], key=f"{key_prefix}_ampm", label_visibility="collapsed")
+    
+    hora_formatted = hora_val.strftime("%I:%M").lstrip("0")
+    return f"{hora_formatted} {ampm}"
 
 if not GOOGLE_SHEET_URL:
     st.warning("⚠️ Configura GOOGLE_SHEET_URL en los secretos de Streamlit.")
@@ -232,147 +219,145 @@ else:
             st.dataframe(df_filtrado, use_container_width=True)
 
     # =========================================================
-    # 3. PESTAÑA: NUEVO
+    # 3. PESTAÑA: NUEVO (CONTROLES REACTIVOS EN TIEMPO REAL)
     # =========================================================
     with tab_nuevo:
-        with st.form("form_servicio", clear_on_submit=True):
-            # 1. Fecha y Tipo de Servicio JUNTOS
-            col_f1, col_f2 = st.columns(2)
-            with col_f1:
-                fecha_input = st.date_input("📅 Fecha del Servicio", datetime.now())
-                fecha_str = fecha_input.strftime("%Y-%m-%d")
-            with col_f2:
-                tipo_servicio = st.selectbox("🎭 Tipo de Servicio", ["Show", "Decoración", "Show + Decoración", "Alquiler"])
+        # Fila 1: Fecha y Tipo de Servicio
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            fecha_input = st.date_input("📅 Fecha del Servicio", datetime.now())
+            fecha_str = fecha_input.strftime("%Y-%m-%d")
+        with col_f2:
+            tipo_servicio = st.selectbox("🎭 Tipo de Servicio", ["Show", "Decoración", "Show + Decoración", "Alquiler"])
 
-            st.markdown("---")
+        st.markdown("---")
 
-            # 2. Nombre del Evento y Cliente UNO ABAJO DEL OTRO
-            nombre_evento = st.text_input("🎉 Nombre del Evento", placeholder="ej. Cumpleaños de Gia")
-            cliente = st.text_input("👤 Nombre del Cliente", placeholder="ej. María López")
+        # Fila 2: Nombre del Evento y Cliente (uno abajo del otro)
+        nombre_evento = st.text_input("🎉 Nombre del Evento", placeholder="ej. Cumpleaños de Gia")
+        cliente = st.text_input("👤 Nombre del Cliente", placeholder="ej. María López")
 
-            st.markdown("---")
+        st.markdown("---")
 
-            # 3. Horas con selector dinámico AM / PM
-            col_h1, col_h2 = st.columns(2)
-            with col_h1:
-                hora_contrato_str = selector_hora_ampm("⏰ Hora Contrato / Inicio", "hc", default_hora=4, default_ampm="PM")
-            with col_h2:
-                hora_invitacion_str = selector_hora_ampm("📩 Hora Citación / Invitación", "hi", default_hora=3, default_ampm="PM")
+        # Fila 3: Horas (Un solo cuadro de hora + selector AM/PM)
+        col_h1, col_h2 = st.columns(2)
+        with col_h1:
+            hora_contrato_str = selector_hora_unica("⏰ Hora Inicio / Contrato", "h_inicio")
+        with col_h2:
+            hora_invitacion_str = selector_hora_unica("📩 Hora Citación / Invitación", "h_invitacion")
 
-            st.markdown("---")
+        st.markdown("---")
 
-            # 4. Dirección en UNA SOLA LÍNEA
-            direccion = st.text_input("📍 Dirección del Evento", placeholder="ej. Av. Las Flores 123, San Isidro")
+        # Fila 4: Dirección en una línea completa
+        direccion = st.text_input("📍 Dirección del Evento", placeholder="ej. Av. Las Flores 123, San Isidro")
 
-            st.markdown("---")
+        st.markdown("---")
 
-            # 5. Teléfono y ¿Agregar Alquiler? JUNTOS
-            col_t1, col_t2 = st.columns(2)
-            with col_t1:
-                telefono = st.text_input("📱 Teléfono del Cliente", placeholder="ej. 987654321")
-            with col_t2:
-                agregar_alquiler = st.radio("📦 ¿Agregar Alquiler?", ["No", "Sí"], horizontal=True)
+        # Fila 5: Teléfono y Alquiler juntos
+        col_t1, col_t2 = st.columns(2)
+        with col_t1:
+            telefono = st.text_input("📱 Teléfono del Cliente", placeholder="ej. 987654321")
+        with col_t2:
+            agregar_alquiler = st.radio("📦 ¿Agregar Alquiler?", ["No", "Sí"], horizontal=True)
 
-            concepto_alquiler = ""
-            monto_alquiler = 0
-            if agregar_alquiler == "Sí" or tipo_servicio == "Alquiler":
-                st.markdown("##### 📦 Detalles del Alquiler")
-                col_alq1, col_alq2 = st.columns(2)
-                with col_alq1:
-                    concepto_alquiler = st.text_input("Concepto del Alquiler", placeholder="ej. Luces, Sillas, Toldo")
-                with col_alq2:
-                    monto_alquiler = st.number_input("Monto del Alquiler (S/)", min_value=0, step=1, value=0)
+        concepto_alquiler = ""
+        monto_alquiler = 0
+        if agregar_alquiler == "Sí" or tipo_servicio == "Alquiler":
+            st.markdown("##### 📦 Detalles del Alquiler")
+            col_alq1, col_alq2 = st.columns(2)
+            with col_alq1:
+                concepto_alquiler = st.text_input("Concepto del Alquiler", placeholder="ej. Luces, Sillas, Toldo")
+            with col_alq2:
+                monto_alquiler = st.number_input("Monto del Alquiler (S/)", min_value=0, step=1, value=0)
 
-            st.markdown("---")
-            st.markdown("### 💰 Montos y Pagos")
+        st.markdown("---")
+        st.markdown("### 💰 Montos y Pagos")
 
-            costo_total = 0
-            costo_show = 0
-            costo_deco = 0
+        costo_total = 0
+        costo_show = 0
+        costo_deco = 0
 
-            # 6. Lógica de Precios según Tipo de Servicio
-            if tipo_servicio == "Show + Decoración":
-                st.info("💡 **Show + Decoración:** Ingresa los precios independientes para cada servicio:")
-                col_sd1, col_sd2 = st.columns(2)
-                with col_sd1:
-                    costo_show = st.number_input("Costo del Show (S/)", min_value=0, step=1, value=0)
-                with col_sd2:
-                    costo_deco = st.number_input("Costo de la Decoración (S/)", min_value=0, step=1, value=0)
+        # Montos según Tipo de Servicio (Reactivo fuera del form)
+        if tipo_servicio == "Show + Decoración":
+            st.info("💡 **Show + Decoración:** Ingresa los montos independientes para cada servicio:")
+            col_sd1, col_sd2 = st.columns(2)
+            with col_sd1:
+                costo_show = st.number_input("Costo del Show (S/)", min_value=0, step=1, value=0, key="c_show")
+            with col_sd2:
+                costo_deco = st.number_input("Costo de la Decoración (S/)", min_value=0, step=1, value=0, key="c_deco")
 
-                costo_total = costo_show + costo_deco + monto_alquiler
-                st.markdown(f"**Desglose:** Show (S/ {costo_show}) + Decoración (S/ {costo_deco})" + (f" + Alquiler (S/ {monto_alquiler})" if monto_alquiler > 0 else ""))
-                st.subheader(f"Costo Total Calculado: S/ {costo_total}")
+            costo_total = costo_show + costo_deco + monto_alquiler
+            st.markdown(f"**Desglose calculado:** Show (S/ {costo_show}) + Decoración (S/ {costo_deco})" + (f" + Alquiler (S/ {monto_alquiler})" if monto_alquiler > 0 else ""))
+            st.subheader(f"Costo Total: S/ {costo_total}")
 
-            elif tipo_servicio in ["Show", "Decoración"]:
-                costo_base = st.number_input(f"Costo Total del Servicio ({tipo_servicio}) (S/)", min_value=0, step=1, value=0)
-                costo_total = costo_base + monto_alquiler
-            else:  # Alquiler solo
-                costo_total = monto_alquiler
+        elif tipo_servicio in ["Show", "Decoración"]:
+            costo_base = st.number_input(f"Costo Total del Servicio ({tipo_servicio}) (S/)", min_value=0, step=1, value=0, key="c_base")
+            costo_total = costo_base + monto_alquiler
+        else:
+            costo_total = monto_alquiler
 
-            # 7. Adelanto y Cálculo de Pendiente (Sin radio de estado)
-            col_p1, col_p2 = st.columns(2)
-            with col_p1:
-                monto_adelanto = st.number_input("Monto de Adelanto (S/)", min_value=0, max_value=int(costo_total) if costo_total > 0 else 99999, step=1, value=0)
-            
-            monto_pendiente = max(0, int(costo_total) - int(monto_adelanto))
+        # Cálculo dinámico del pago pendiente en tiempo real
+        col_p1, col_p2 = st.columns(2)
+        with col_p1:
+            monto_adelanto = st.number_input("Monto de Adelanto (S/)", min_value=0, step=1, value=0, key="c_adelanto")
 
-            with col_p2:
-                if monto_pendiente == 0 and costo_total > 0:
-                    st.success("### ✅ CANCELADO")
-                    estado_pago = "Pago completo"
-                else:
-                    st.warning(f"💵 **MONTO PENDIENTE:** S/ {monto_pendiente}")
-                    estado_pago = "Pago parcial"
+        monto_pendiente = max(0, int(costo_total) - int(monto_adelanto))
 
-            st.markdown("---")
-            descripcion = st.text_area("📝 Detalles / Observaciones Adicionales", placeholder="Escribe aquí detalles adicionales...")
+        with col_p2:
+            st.write("")
+            st.write("")
+            if monto_pendiente == 0 and costo_total > 0:
+                st.success("### ✅ CANCELADO")
+                estado_pago = "Pago completo"
+            else:
+                st.warning(f"💵 **MONTO PENDIENTE:** S/ {monto_pendiente}")
+                estado_pago = "Pago parcial"
 
-            btn_guardar = st.form_submit_button("💾 Guardar Servicio", use_container_width=True)
+        st.markdown("---")
+        descripcion = st.text_area("📝 Detalles / Observaciones Adicionales", placeholder="Escribe aquí detalles adicionales...")
 
-            if btn_guardar:
-                if not GOOGLE_SCRIPT_URL:
-                    st.error("⚠️ Falta configurar GOOGLE_SCRIPT_URL en los secretos.")
-                else:
-                    # Desglose personalizado
-                    desglose_partes = []
-                    if tipo_servicio == "Show + Decoración":
-                        desglose_partes.append(f"Show: S/ {costo_show}")
-                        desglose_partes.append(f"Decoración: S/ {costo_deco}")
-                    elif tipo_servicio != "Alquiler":
-                        desglose_partes.append(f"{tipo_servicio}: S/ {costo_total - monto_alquiler}")
-                    
-                    if concepto_alquiler:
-                        desglose_partes.append(f"Alquiler ({concepto_alquiler}): S/ {monto_alquiler}")
-                    
-                    if monto_pendiente > 0:
-                        desglose_partes.append(f"Pendiente: S/ {monto_pendiente}")
+        if st.button("💾 Guardar Servicio", use_container_width=True, type="primary"):
+            if not GOOGLE_SCRIPT_URL:
+                st.error("⚠️ Falta configurar GOOGLE_SCRIPT_URL en los secretos.")
+            else:
+                desglose_partes = []
+                if tipo_servicio == "Show + Decoración":
+                    desglose_partes.append(f"Show: S/ {costo_show}")
+                    desglose_partes.append(f"Decoración: S/ {costo_deco}")
+                elif tipo_servicio != "Alquiler":
+                    desglose_partes.append(f"{tipo_servicio}: S/ {costo_total - monto_alquiler}")
+                
+                if concepto_alquiler:
+                    desglose_partes.append(f"Alquiler ({concepto_alquiler}): S/ {monto_alquiler}")
+                
+                if monto_pendiente > 0:
+                    desglose_partes.append(f"Pendiente: S/ {monto_pendiente}")
 
-                    desglose_str = " | ".join(desglose_partes) if desglose_partes else f"S/ {costo_total}"
+                desglose_str = " | ".join(desglose_partes) if desglose_partes else f"S/ {costo_total}"
 
-                    payload = {
-                        "Fecha": fecha_str,
-                        "Tipo": tipo_servicio if agregar_alquiler == "No" or tipo_servicio == "Alquiler" else f"{tipo_servicio} + Alquiler",
-                        "Evento": nombre_evento if nombre_evento else "Evento",
-                        "Hora": hora_contrato_str,
-                        "Direccion": direccion,
-                        "Hora_Invitacion": hora_invitacion_str,
-                        "Cliente": cliente,
-                        "Telefono": telefono,
-                        "Costo_Total": str(int(costo_total)),
-                        "Monto_Adelanto": str(int(monto_adelanto)),
-                        "Estado_Pago": estado_pago,
-                        "Descripcion": descripcion if descripcion else "Sin descripción",
-                        "Desglose_Costos": desglose_str,
-                        "Concepto_Alquiler": concepto_alquiler if concepto_alquiler else "N/A"
-                    }
+                payload = {
+                    "Fecha": fecha_str,
+                    "Tipo": tipo_servicio if agregar_alquiler == "No" or tipo_servicio == "Alquiler" else f"{tipo_servicio} + Alquiler",
+                    "Evento": nombre_evento if nombre_evento else "Evento",
+                    "Hora": hora_contrato_str,
+                    "Direccion": direccion,
+                    "Hora_Invitacion": hora_invitacion_str,
+                    "Cliente": cliente,
+                    "Telefono": telefono,
+                    "Costo_Total": str(int(costo_total)),
+                    "Monto_Adelanto": str(int(monto_adelanto)),
+                    "Estado_Pago": estado_pago,
+                    "Descripcion": descripcion if descripcion else "Sin descripción",
+                    "Desglose_Costos": desglose_str,
+                    "Concepto_Alquiler": concepto_alquiler if concepto_alquiler else "N/A"
+                }
 
-                    try:
-                        res = requests.post(GOOGLE_SCRIPT_URL, data=json.dumps(payload))
-                        if res.status_code == 200:
-                            st.success("🎉 ¡El servicio fue guardado con éxito!")
-                            st.cache_data.clear()
-                            st.rerun()
-                        else:
-                            st.error(f"Error HTTP {res.status_code} al guardar en Google Sheets.")
-                    except Exception as e:
-                        st.error(f"Error de conexión: {e}")
+                try:
+                    res = requests.post(GOOGLE_SCRIPT_URL, data=json.dumps(payload))
+                    if res.status_code == 200:
+                        st.success("🎉 ¡El servicio fue guardado con éxito!")
+                        st.cache_data.clear()
+                        st.rerun()
+                    else:
+                        st.error(f"Error HTTP {res.status_code} al guardar en Google Sheets.")
+                except Exception as e:
+                    st.error(f"Error de conexión: {e}")
