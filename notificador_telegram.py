@@ -1,87 +1,106 @@
 import os
 import requests
-from datetime import datetime, timedelta
 import pandas as pd
+from datetime import datetime, timedelta
 
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+# Configuración de credenciales desde las variables de entorno
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-DIRECTORIO_ACTUAL = os.path.dirname(os.path.abspath(__file__))
-ARCHIVO_EXCEL = os.path.join(DIRECTORIO_ACTUAL, "agenda_eventos.xlsx")
+# URL CSV pública o de exportación de tu Google Sheet / Base de datos
+# (Asegúrate de colocar la URL de tu Hoja de Cálculo o la fuente de datos que usas)
+SHEET_URL = os.getenv("SHEET_URL", "https://docs.google.com/spreadsheets/d/TU_SHEET_ID/export?format=csv")
 
-def enviar_mensaje_telegram(texto):
+def enviar_mensaje(mensaje):
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
-        print("❌ Error: Faltan las variables TELEGRAM_TOKEN o TELEGRAM_CHAT_ID")
+        print("Error: No se configuraron las variables TELEGRAM_TOKEN o TELEGRAM_CHAT_ID.")
         return
-        
+
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
-        "text": texto,
-        "parse_mode": "Markdown"
+        "text": mensaje,
+        "parse_mode": "HTML"
     }
-    
-    try:
-        response = requests.post(url, data=payload)
-        if response.status_code == 200:
-            print("✅ Notificación enviada con éxito a Telegram")
-        else:
-            print(f"❌ Error al enviar mensaje: {response.text}")
-    except Exception as e:
-        print(f"❌ Excepción al conectar con Telegram: {e}")
-
-def procesar_y_notificar():
-    if not os.path.exists(ARCHIVO_EXCEL):
-        enviar_mensaje_telegram("🤖 *Prueba de Agenda Madai:* Notificación exitosa. (No se encontró el archivo Excel).")
-        return
-
-    try:
-        df = pd.read_excel(ARCHIVO_EXCEL, dtype=str)
-    except Exception as e:
-        enviar_mensaje_telegram(f"❌ Error al leer el archivo Excel: {e}")
-        return
-
-    if df.empty:
-        enviar_mensaje_telegram("🤖 *Prueba de Agenda Madai:* Conexión exitosa. Tu Excel no tiene eventos guardados por ahora.")
-        return
-
-    df['Fecha_DT'] = pd.to_datetime(df['Fecha'], errors='coerce').dt.date
-    
-    hora_utc = datetime.utcnow().hour
-    hoy = datetime.now().date()
-    
-    if 1 <= hora_utc <= 6:
-        fecha_objetivo = hoy + timedelta(days=1)
-        titulo = "🌙 *RECORDATORIO: EVENTOS PARA MAÑANA*"
+    res = requests.post(url, json=payload)
+    if res.status_code == 200:
+        print("Notificación enviada correctamente a Telegram.")
     else:
-        fecha_objetivo = hoy
-        titulo = "☀️ *HOY TIENES EVENTOS PROGRAMADOS*"
+        print(f"Error enviando mensaje a Telegram: {res.text}")
 
-    eventos = df[df['Fecha_DT'] == fecha_objetivo]
+def main():
+    # Obtener hora actual en Perú (UTC-5)
+    ahora_utc = datetime.utcnow()
+    ahora_peru = ahora_utc - timedelta(hours=5)
+    
+    # Determinar qué fecha consultar según la hora de ejecución
+    # Si se ejecuta de 18:00 a 23:59 (7:00 PM), busca eventos de MAÑANA
+    if ahora_peru.hour >= 18:
+        fecha_objetivo_dt = ahora_peru + timedelta(days=1)
+        tipo_notificacion = "RECORDATORIO PARA MAÑANA"
+    else:
+        # En caso contrario (por ejemplo, a las 7:00 AM o prueba manual), busca eventos de HOY
+        fecha_objetivo_dt = ahora_peru
+        tipo_notificacion = "EVENTOS DE HOY"
+
+    # Formatos de fecha en texto
+    fecha_iso = fecha_objetivo_dt.strftime("%Y-%m-%d")        # Ejemplo: 2026-09-08
+    fecha_latam = fecha_objetivo_dt.strftime("%d/%m/%Y")      # Ejemplo: 08/09/2026
+    fecha_corta = f"{fecha_objetivo_dt.day}/{fecha_objetivo_dt.month}/{fecha_objetivo_dt.year}" # 8/9/2026
+
+    print(f"Buscando eventos para la fecha: {fecha_iso} / {fecha_latam}")
+
+    try:
+        df = pd.read_csv(SHEET_URL)
+    except Exception as e:
+        print(f"Error leyendo los datos de la hoja: {e}")
+        return
+
+    if df.empty or "Fecha" not in df.columns:
+        enviar_mensaje("🤖 <b>Prueba Agenda Madai:</b> No se pudieron cargar los datos o no existe la columna 'Fecha'.")
+        return
+
+    # Limpieza de fechas y normalización
+    df["Fecha_Str"] = df["Fecha"].astype(str).str.strip()
+    
+    # Filtrar registros que coincidan con cualquier formato de la fecha objetivo
+    eventos = df[
+        (df["Fecha_Str"] == fecha_iso) | 
+        (df["Fecha_Str"] == fecha_latam) | 
+        (df["Fecha_Str"] == fecha_corta)
+    ]
 
     if eventos.empty:
-        enviar_mensaje_telegram(f"🤖 *Prueba Agenda Madai:* Notificador activo. No hay eventos registrados para la fecha objetivo ({fecha_objetivo.strftime('%d/%m/%Y')}).")
-        return
+        # Si no hubo coincidencia exacta, intentar parsear la columna con pandas
+        df["Fecha_Parsed"] = pd.to_datetime(df["Fecha_Str"], errors="coerce", dayfirst=True)
+        df["Fecha_Clean"] = df["Fecha_Parsed"].dt.strftime("%Y-%m-%d")
+        eventos = df[df["Fecha_Clean"] == fecha_iso]
 
-    mensaje = f"{titulo}\n\n"
-    for _, fila in eventos.iterrows():
-        costo_total = fila.get('Costo_Total', '0')
-        adelanto = fila.get('Monto_Adelanto', '0')
-        
-        mensaje += f"🎉 *{fila['Evento']}*\n"
-        mensaje += f"🏷️ *Tipo:* {fila['Tipo']}\n"
-        mensaje += f"⏰ *Llegada:* {fila['Hora']} | *Invitación:* {fila['Hora_Invitacion']}\n"
-        mensaje += f"📍 *Dirección:* {fila['Direccion']}\n"
-        mensaje += f"💰 *Total:* S/ {costo_total} | *Adelanto:* S/ {adelanto} ({fila['Estado_Pago']})\n"
-        mensaje += f"👤 *Cliente:* {fila['Cliente']} - 📱 {fila['Telefono']}\n"
-        
-        concepto_alq = str(fila.get('Concepto_Alquiler', '')).strip()
-        if concepto_alq and concepto_alq not in ['N/A', 'No registrado']:
-            mensaje += f"📦 *Alquiler:* {concepto_alq}\n"
-            
-        mensaje += "-----------------------------------\n"
+    if not eventos.empty:
+        mensaje = f"🎉 <b>AGENDA MADAI - {tipo_notificacion} ({fecha_latam})</b> 🎉\n"
+        mensaje += "=============================\n\n"
 
-    enviar_mensaje_telegram(mensaje)
+        for idx, (_, row) in enumerate(eventos.iterrows(), 1):
+            evento_nombre = row.get("Evento", "Evento")
+            tipo_show = row.get("Tipo", "")
+            hora_contrato = row.get("Hora", "N/A")
+            hora_citacion = row.get("Hora_Invitacion", "N/A")
+            cliente = row.get("Cliente", "N/A")
+            telefono = row.get("Telefono", "N/A")
+            direccion = row.get("Direccion", "N/A")
+            costo = row.get("Costo_Total", "0")
+            pago = row.get("Estado_Pago", "N/A")
+
+            mensaje += f"<b>{idx}. {evento_nombre} ({tipo_show})</b>\n"
+            mensaje += f"⏰ <b>Hora Contrato:</b> {hora_contrato} | <b>Citación:</b> {hora_citacion}\n"
+            mensaje += f"👤 <b>Cliente:</b> {cliente} (📱 {telefono})\n"
+            mensaje += f"📍 <b>Lugar:</b> {direccion}\n"
+            mensaje += f"💰 <b>Total:</b> S/ {costo} ({pago})\n"
+            mensaje += "-----------------------------\n"
+
+        enviar_mensaje(mensaje)
+    else:
+        enviar_mensaje(f"🤖 <b>Prueba Agenda Madai:</b> Notificador activo. No hay eventos registrados para la fecha objetivo ({fecha_latam}).")
 
 if __name__ == "__main__":
-    procesar_y_notificar()
+    main()
