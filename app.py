@@ -35,7 +35,7 @@ st.markdown("""
         padding-left: 10px !important;
     }
 
-    /* Forzar que las columnas de hora permanezcan en la misma fila (sin romperse) */
+    /* Forzar que las columnas de hora permanezcan en la misma fila */
     div[data-testid="column"] {
         min-width: 0px !important;
     }
@@ -72,9 +72,26 @@ st.markdown("""
 
 st.title("📅 Agenda Virtual Madai")
 
-# Control de pestaña activa mediante session_state
-if "pestaña_activa" not in st.session_state:
-    st.session_state["pestaña_activa"] = "Eventos"
+# Control del menú mediante session_state
+if "menu_activo" not in st.session_state:
+    st.session_state["menu_activo"] = "Eventos"
+
+# Menú superior tipo pestañas creadas con botones
+col_m1, col_m2, col_m3 = st.columns(3)
+with col_m1:
+    if st.button("📋 Eventos", use_container_width=True, type="primary" if st.session_state["menu_activo"] == "Eventos" else "secondary"):
+        st.session_state["menu_activo"] = "Eventos"
+        st.rerun()
+with col_m2:
+    if st.button("🔍 Filtro", use_container_width=True, type="primary" if st.session_state["menu_activo"] == "Filtro" else "secondary"):
+        st.session_state["menu_activo"] = "Filtro"
+        st.rerun()
+with col_m3:
+    if st.button("➕ Nuevo", use_container_width=True, type="primary" if st.session_state["menu_activo"] == "Nuevo" else "secondary"):
+        st.session_state["menu_activo"] = "Nuevo"
+        st.rerun()
+
+st.write("---")
 
 # Cargar variables de secretos
 GOOGLE_SHEET_URL = st.secrets.get("GOOGLE_SHEET_URL", os.environ.get("GOOGLE_SHEET_URL", ""))
@@ -108,21 +125,10 @@ if not GOOGLE_SHEET_URL:
 else:
     df = cargar_datos(GOOGLE_SHEET_URL)
 
-    # Definir pestañas con st.radio o botones dinámicos para poder cambiarlas programáticamente
-    opcion_tab = st.radio(
-        "Menú de navegación",
-        ["Eventos", "Filtro", "Nuevo"],
-        index=["Eventos", "Filtro", "Nuevo"].index(st.session_state["pestaña_activa"]),
-        key="navegacion_tabs",
-        horizontal=True,
-        label_visibility="collapsed"
-    )
-    st.session_state["pestaña_activa"] = opcion_tab
-
     # =========================================================
-    # 1. PESTAÑA: EVENTOS (MENÚ DE INICIO)
+    # 1. MENÚ: EVENTOS (PANTALLA DE INICIO)
     # =========================================================
-    if st.session_state["pestaña_activa"] == "Eventos":
+    if st.session_state["menu_activo"] == "Eventos":
         if "mensaje_exito" in st.session_state:
             st.success(st.session_state.pop("mensaje_exito"))
 
@@ -200,9 +206,9 @@ else:
             st.info("No hay datos guardados aún en la base de datos.")
 
     # =========================================================
-    # 2. PESTAÑA: FILTRO
+    # 2. MENÚ: FILTRO
     # =========================================================
-    elif st.session_state["pestaña_activa"] == "Filtro":
+    elif st.session_state["menu_activo"] == "Filtro":
         st.subheader("🔍 Búsqueda y Filtros")
         
         filtro_cliente = st.text_input("👤 Cliente / Nombre del Evento:", placeholder="Buscar por cliente o evento...")
@@ -247,9 +253,9 @@ else:
             st.dataframe(df_filtrado, use_container_width=True)
 
     # =========================================================
-    # 3. PESTAÑA: NUEVO (FORMULARIO)
+    # 3. MENÚ: NUEVO (FORMULARIO)
     # =========================================================
-    elif st.session_state["pestaña_activa"] == "Nuevo":
+    elif st.session_state["menu_activo"] == "Nuevo":
         fecha_input = st.date_input("📅 Fecha", datetime.now())
         fecha_str = fecha_input.strftime("%Y-%m-%d")
 
@@ -356,10 +362,9 @@ else:
                 try:
                     res = requests.post(GOOGLE_SCRIPT_URL, data=json.dumps(payload))
                     if res.status_code == 200:
-                        # Limpia la caché de datos
                         st.cache_data.clear()
-                        # Redirige al menú principal (Eventos)
-                        st.session_state["pestaña_activa"] = "Eventos"
+                        # Cambiar la variable de estado para forzar el despliegue del menú Eventos
+                        st.session_state["menu_activo"] = "Eventos"
                         st.session_state["mensaje_exito"] = "🎉 ¡Servicio guardado con éxito!"
                         st.rerun()
                     else:
