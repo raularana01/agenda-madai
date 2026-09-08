@@ -8,9 +8,22 @@ from datetime import datetime, timedelta
 # Configuración de la página
 st.set_page_config(page_title="Agenda Madai", page_icon="📅", layout="wide")
 
-# Estilos CSS
+# Estilos CSS generales y FORZADO DE COLUMNAS LADO A LADO
 st.markdown("""
 <style>
+    /* Forzar que las columnas dentro del formulario se mantengan lado a lado (Flexbox) */
+    [data-testid="stForm"] [data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 1rem !important;
+    }
+    
+    [data-testid="stForm"] [data-testid="stHorizontalBlock"] > div {
+        flex: 1 1 0px !important;
+        min-width: 0 !important;
+    }
+
     .card-hoy {
         background-color: #E8F5E9;
         border-left: 6px solid #2E7D32;
@@ -77,7 +90,7 @@ else:
     tab_eventos, tab_filtro, tab_nuevo = st.tabs(["Eventos", "Filtro", "Nuevo"])
 
     # =========================================================
-    # 1. PESTAÑA: EVENTOS (SIN TÍTULOS INNECESARIOS)
+    # 1. PESTAÑA: EVENTOS
     # =========================================================
     with tab_eventos:
         if not df.empty and "Fecha" in df.columns:
@@ -156,19 +169,11 @@ else:
             st.info("No hay datos guardados aún en la base de datos.")
 
     # =========================================================
-    # 2. PESTAÑA: FILTRO (SOLO NOMBRE, TELÉFONO Y FECHAS)
+    # 2. PESTAÑA: FILTRO
     # =========================================================
     with tab_filtro:
         st.subheader("🔍 Búsqueda y Filtros")
         
-        df_filtrado = df.copy()
-        
-        if not df_filtrado.empty and "Fecha" in df_filtrado.columns:
-            df_filtrado["Fecha_DT"] = pd.to_datetime(df_filtrado["Fecha"], errors="coerce", dayfirst=True)
-            mask_nat = df_filtrado["Fecha_DT"].isna()
-            if mask_nat.any():
-                df_filtrado.loc[mask_nat, "Fecha_DT"] = pd.to_datetime(df_filtrado.loc[mask_nat, "Fecha"], errors="coerce")
-
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
             filtro_cliente = st.text_input("👤 Cliente / Nombre del Evento:", placeholder="Buscar por cliente o evento...")
@@ -177,35 +182,48 @@ else:
         with col_f3:
             rango_fechas = st.date_input("📅 Rango de Fechas:", value=())
 
-        # Aplicación de Filtros
-        if filtro_cliente and not df_filtrado.empty:
-            mask_cliente = (
-                df_filtrado["Cliente"].astype(str).str.contains(filtro_cliente, case=False, na=False) |
-                df_filtrado["Evento"].astype(str).str.contains(filtro_cliente, case=False, na=False)
-            )
-            df_filtrado = df_filtrado[mask_cliente]
+        tiene_filtro_fechas = isinstance(rango_fechas, (list, tuple)) and len(rango_fechas) == 2
+        filtro_activo = bool(filtro_cliente.strip() or filtro_telefono.strip() or tiene_filtro_fechas)
 
-        if filtro_telefono and not df_filtrado.empty:
-            df_filtrado = df_filtrado[df_filtrado["Telefono"].astype(str).str.contains(filtro_telefono, case=False, na=False)]
+        if not filtro_activo:
+            st.info("👉 Ingresa un nombre, número de teléfono o selecciona un rango de fechas para ver los resultados.")
+        else:
+            df_filtrado = df.copy()
 
-        if isinstance(rango_fechas, (list, tuple)) and len(rango_fechas) == 2 and not df_filtrado.empty:
-            f_inicio, f_fin = rango_fechas
-            df_filtrado = df_filtrado[
-                (df_filtrado["Fecha_DT"].dt.date >= f_inicio) & 
-                (df_filtrado["Fecha_DT"].dt.date <= f_fin)
-            ]
+            if not df_filtrado.empty and "Fecha" in df_filtrado.columns:
+                df_filtrado["Fecha_DT"] = pd.to_datetime(df_filtrado["Fecha"], errors="coerce", dayfirst=True)
+                mask_nat = df_filtrado["Fecha_DT"].isna()
+                if mask_nat.any():
+                    df_filtrado.loc[mask_nat, "Fecha_DT"] = pd.to_datetime(df_filtrado.loc[mask_nat, "Fecha"], errors="coerce")
 
-        if "Fecha_DT" in df_filtrado.columns:
-            df_filtrado = df_filtrado.drop(columns=["Fecha_DT"])
+            if filtro_cliente.strip() and not df_filtrado.empty:
+                mask_cliente = (
+                    df_filtrado["Cliente"].astype(str).str.contains(filtro_cliente, case=False, na=False) |
+                    df_filtrado["Evento"].astype(str).str.contains(filtro_cliente, case=False, na=False)
+                )
+                df_filtrado = df_filtrado[mask_cliente]
 
-        st.write(f"**Resultados encontrados:** {len(df_filtrado)}")
-        st.dataframe(df_filtrado, use_container_width=True)
+            if filtro_telefono.strip() and not df_filtrado.empty:
+                df_filtrado = df_filtrado[df_filtrado["Telefono"].astype(str).str.contains(filtro_telefono, case=False, na=False)]
+
+            if tiene_filtro_fechas and not df_filtrado.empty:
+                f_inicio, f_fin = rango_fechas
+                df_filtrado = df_filtrado[
+                    (df_filtrado["Fecha_DT"].dt.date >= f_inicio) & 
+                    (df_filtrado["Fecha_DT"].dt.date <= f_fin)
+                ]
+
+            if "Fecha_DT" in df_filtrado.columns:
+                df_filtrado = df_filtrado.drop(columns=["Fecha_DT"])
+
+            st.write(f"**Resultados encontrados:** {len(df_filtrado)}")
+            st.dataframe(df_filtrado, use_container_width=True)
 
     # =========================================================
-    # 3. PESTAÑA: NUEVO (ESTRUCTURA LADO A LADO CORREGIDA)
+    # 3. PESTAÑA: NUEVO (FORZADO HORIZONTAL CON CSS)
     # =========================================================
     with tab_nuevo:
-        # Fila 1: Fecha y Tipo de Servicio (lado a lado)
+        # Fila superior: Fecha y Tipo de servicio
         col_s1, col_s2 = st.columns(2)
         with col_s1:
             fecha_input = st.date_input("1. Fecha del Servicio", datetime.now())
@@ -249,31 +267,31 @@ else:
                     telefono = st.text_input("Teléfono del Cliente")
 
             else:  # Show o Show + Decoración
-                # Fila 1 del formulario: Nombre de Evento y Cliente
-                col_f1, col_f2 = st.columns(2)
-                with col_f1:
+                # Fila 1: Nombre de Evento y Cliente
+                c_a1, c_a2 = st.columns(2)
+                with c_a1:
                     nombre_evento = st.text_input("Nombre del Evento", placeholder="ej. Cumpleaños de Gia")
-                with col_f2:
+                with c_a2:
                     cliente = st.text_input("Nombre del Cliente")
 
-                # Fila 2: Horas (lado a lado)
-                col_h1, col_h2 = st.columns(2)
-                with col_h1:
+                # Fila 2: Hora Contrato y Hora Citación
+                c_b1, c_b2 = st.columns(2)
+                with c_b1:
                     hc_input = st.time_input("Hora Contrato / Inicio Show", value=datetime.strptime("16:00", "%H:%M").time())
                     hora_contrato_str = hc_input.strftime("%I:%M %p")
-                with col_h2:
+                with c_b2:
                     hi_input = st.time_input("Hora Citación / Invitación", value=datetime.strptime("15:00", "%H:%M").time())
                     hora_invitacion_str = hi_input.strftime("%I:%M %p")
 
-                # Fila 3: Dirección y Teléfono
-                col_d1, col_d2 = st.columns(2)
-                with col_d1:
+                # Fila 3: Dirección y (Teléfono + Agregar Alquiler)
+                c_c1, c_c2 = st.columns(2)
+                with c_c1:
                     direccion = st.text_input("Dirección del Evento")
-                with col_d2:
-                    col_t1, col_t2 = st.columns(2)
-                    with col_t1:
+                with c_c2:
+                    c_t1, c_t2 = st.columns(2)
+                    with c_t1:
                         telefono = st.text_input("Teléfono del Cliente")
-                    with col_t2:
+                    with c_t2:
                         agregar_alquiler = st.radio("¿Agregar Alquiler?", ["No", "Sí"], horizontal=True)
 
                 if agregar_alquiler == "Sí":
@@ -290,7 +308,7 @@ else:
             col_p1, col_p2 = st.columns(2)
             with col_p1:
                 costo_total = st.number_input("Costo Total del Servicio (S/)", min_value=0, step=1, value=0)
-                estado_pago = st.radio("Estado de Pago", ["Pago completo", "Pago parcial"], horizontal=True)
+                estado_pago = st.radio("Estado de Pago", ["Pago completo", "Pago parcial"], index=1, horizontal=True)
 
             monto_adelanto = 0
             monto_pendiente = 0
