@@ -55,7 +55,6 @@ def cargar_datos(url):
         df = df.fillna("")
         df.columns = df.columns.str.strip()
         
-        # Mapeo automático de nombres con espacios a nombres con guion bajo
         renombres = {
             "Hora Invitacion": "Hora_Invitacion",
             "Costo Total": "Costo_Total",
@@ -78,11 +77,9 @@ else:
     tab_eventos, tab_filtro, tab_nuevo = st.tabs(["Eventos", "Filtro", "Nuevo"])
 
     # =========================================================
-    # 1. PESTAÑA: EVENTOS
+    # 1. PESTAÑA: EVENTOS (SIN TÍTULOS INNECESARIOS)
     # =========================================================
     with tab_eventos:
-        st.subheader("📌 Eventos Registrados")
-
         if not df.empty and "Fecha" in df.columns:
             df_copia = df.copy()
             df_copia["Fecha_Parsed"] = pd.to_datetime(df_copia["Fecha"], errors="coerce", dayfirst=True)
@@ -105,7 +102,6 @@ else:
             st.markdown("---")
 
             if modo_vista == "Eventos del día (Hoy)":
-                st.markdown(f"### 🟢 Eventos para Hoy ({hoy_str})")
                 df_hoy = df_copia[df_copia["Fecha_Clean"] == hoy_str]
 
                 if not df_hoy.empty:
@@ -120,13 +116,12 @@ else:
                         </div>
                         """, unsafe_allow_html=True)
                 else:
-                    st.info(f"No hay eventos registrados exactamente para hoy ({hoy_str}).")
+                    st.info(f"No hay eventos registrados para hoy ({hoy_str}).")
 
             elif modo_vista == "Próximos 3 días":
                 dias_proximos = [(hoy_dt + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(0, 4)]
                 df_3dias = df_copia[df_copia["Fecha_Clean"].isin(dias_proximos)].sort_values("Fecha_Clean")
 
-                st.markdown("### 🔵 Eventos de los próximos 3 días")
                 if not df_3dias.empty:
                     for _, row in df_3dias.iterrows():
                         st.markdown(f"""
@@ -144,7 +139,6 @@ else:
             else:
                 df_futuros = df_copia.sort_values("Fecha_Clean", ascending=True)
 
-                st.markdown("### 📅 Todos los Eventos Agendados")
                 if not df_futuros.empty:
                     for _, row in df_futuros.iterrows():
                         st.markdown(f"""
@@ -162,14 +156,13 @@ else:
             st.info("No hay datos guardados aún en la base de datos.")
 
     # =========================================================
-    # 2. PESTAÑA: FILTRO
+    # 2. PESTAÑA: FILTRO (SOLO NOMBRE, TELÉFONO Y FECHAS)
     # =========================================================
     with tab_filtro:
-        st.subheader("🔍 Búsqueda y Filtros Especiales")
+        st.subheader("🔍 Búsqueda y Filtros")
         
         df_filtrado = df.copy()
         
-        # Preparar columna de fecha parseada para filtrar por rango
         if not df_filtrado.empty and "Fecha" in df_filtrado.columns:
             df_filtrado["Fecha_DT"] = pd.to_datetime(df_filtrado["Fecha"], errors="coerce", dayfirst=True)
             mask_nat = df_filtrado["Fecha_DT"].isna()
@@ -183,14 +176,6 @@ else:
             filtro_telefono = st.text_input("📱 Número de Teléfono:", placeholder="Buscar por número...")
         with col_f3:
             rango_fechas = st.date_input("📅 Rango de Fechas:", value=())
-
-        col_f4, col_f5 = st.columns(2)
-        with col_f4:
-            opciones_estado = ["Todos"] + list(df["Estado_Pago"].unique()) if not df.empty and "Estado_Pago" in df.columns else ["Todos"]
-            filtro_estado = st.selectbox("Estado de Pago:", opciones_estado)
-        with col_f5:
-            opciones_tipo = ["Todos"] + list(df["Tipo"].unique()) if not df.empty and "Tipo" in df.columns else ["Todos"]
-            filtro_tipo = st.selectbox("Tipo de Servicio:", opciones_tipo)
 
         # Aplicación de Filtros
         if filtro_cliente and not df_filtrado.empty:
@@ -210,12 +195,6 @@ else:
                 (df_filtrado["Fecha_DT"].dt.date <= f_fin)
             ]
 
-        if filtro_estado != "Todos" and not df_filtrado.empty:
-            df_filtrado = df_filtrado[df_filtrado["Estado_Pago"] == filtro_estado]
-
-        if filtro_tipo != "Todos" and not df_filtrado.empty:
-            df_filtrado = df_filtrado[df_filtrado["Tipo"] == filtro_tipo]
-
         if "Fecha_DT" in df_filtrado.columns:
             df_filtrado = df_filtrado.drop(columns=["Fecha_DT"])
 
@@ -223,12 +202,10 @@ else:
         st.dataframe(df_filtrado, use_container_width=True)
 
     # =========================================================
-    # 3. PESTAÑA: NUEVO (OPTIMIZADA)
+    # 3. PESTAÑA: NUEVO (ESTRUCTURA LADO A LADO CORREGIDA)
     # =========================================================
     with tab_nuevo:
-        st.subheader("➕ Llenar Servicio")
-        
-        # Fecha y Tipo de Servicio lado a lado
+        # Fila 1: Fecha y Tipo de Servicio (lado a lado)
         col_s1, col_s2 = st.columns(2)
         with col_s1:
             fecha_input = st.date_input("1. Fecha del Servicio", datetime.now())
@@ -272,25 +249,27 @@ else:
                     telefono = st.text_input("Teléfono del Cliente")
 
             else:  # Show o Show + Decoración
-                col1, col2 = st.columns(2)
-                with col1:
+                # Fila 1 del formulario: Nombre de Evento y Cliente
+                col_f1, col_f2 = st.columns(2)
+                with col_f1:
                     nombre_evento = st.text_input("Nombre del Evento", placeholder="ej. Cumpleaños de Gia")
-                    
-                    # Horas de contrato e invitación lado a lado
-                    col_h1, col_h2 = st.columns(2)
-                    with col_h1:
-                        hc_input = st.time_input("Hora Contrato / Inicio Show", value=datetime.strptime("16:00", "%H:%M").time())
-                        hora_contrato_str = hc_input.strftime("%I:%M %p")
-                    with col_h2:
-                        hi_input = st.time_input("Hora Citación / Invitación", value=datetime.strptime("15:00", "%H:%M").time())
-                        hora_invitacion_str = hi_input.strftime("%I:%M %p")
-
-                    direccion = st.text_input("Dirección del Evento")
-
-                with col2:
+                with col_f2:
                     cliente = st.text_input("Nombre del Cliente")
-                    
-                    # Teléfono y Agregar Alquiler lado a lado
+
+                # Fila 2: Horas (lado a lado)
+                col_h1, col_h2 = st.columns(2)
+                with col_h1:
+                    hc_input = st.time_input("Hora Contrato / Inicio Show", value=datetime.strptime("16:00", "%H:%M").time())
+                    hora_contrato_str = hc_input.strftime("%I:%M %p")
+                with col_h2:
+                    hi_input = st.time_input("Hora Citación / Invitación", value=datetime.strptime("15:00", "%H:%M").time())
+                    hora_invitacion_str = hi_input.strftime("%I:%M %p")
+
+                # Fila 3: Dirección y Teléfono
+                col_d1, col_d2 = st.columns(2)
+                with col_d1:
+                    direccion = st.text_input("Dirección del Evento")
+                with col_d2:
                     col_t1, col_t2 = st.columns(2)
                     with col_t1:
                         telefono = st.text_input("Teléfono del Cliente")
@@ -307,7 +286,7 @@ else:
 
             st.markdown("---")
 
-            # Sección de Pagos simplificada
+            # Sección de Pago
             col_p1, col_p2 = st.columns(2)
             with col_p1:
                 costo_total = st.number_input("Costo Total del Servicio (S/)", min_value=0, step=1, value=0)
