@@ -6,24 +6,29 @@ import os
 from datetime import datetime, timedelta
 
 # Configuración de la página
-st.set_page_config(page_title="Agenda Madai", page_icon="📅", layout="wide")
+st.set_page_config(page_title="Agenda Madai", page_icon="📅", layout="centered")
 
-# Estilos CSS generales y forzado global de Flexbox para evitar apilamiento vertical
+# Estilos CSS optimizados para móviles sin scroll lateral
 st.markdown("""
 <style>
-    /* Forzar que las columnas de Streamlit se mantengan siempre horizontales */
-    [data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        align-items: center !important;
-        gap: 0.5rem !important;
+    /* Eliminación total de márgenes extra y scroll horizontal */
+    .main .block-container {
+        padding-left: 0.8rem !important;
+        padding-right: 0.8rem !important;
+        max-width: 100% !important;
+    }
+    
+    /* Contenedores flex limpios */
+    .time-container {
+        display: flex;
+        gap: 4px;
+        align-items: center;
     }
     
     .card-hoy {
         background-color: #E8F5E9;
         border-left: 6px solid #2E7D32;
-        padding: 15px;
+        padding: 12px;
         border-radius: 8px;
         margin-bottom: 12px;
         color: #1B5E20;
@@ -31,18 +36,18 @@ st.markdown("""
     .card-proximo {
         background-color: #E3F2FD;
         border-left: 6px solid #1565C0;
-        padding: 15px;
+        padding: 12px;
         border-radius: 8px;
         margin-bottom: 12px;
         color: #0D47A1;
     }
     .card-header {
-        font-size: 18px;
+        font-size: 16px;
         font-weight: bold;
         margin-bottom: 5px;
     }
     .card-sub {
-        font-size: 14px;
+        font-size: 13px;
         color: #333333;
         margin-bottom: 3px;
     }
@@ -78,27 +83,21 @@ def cargar_datos(url):
         st.error(f"Error al conectar con Google Sheets: {e}")
         return pd.DataFrame()
 
-# Función para selector de hora en una sola línea horizontal (Cuadro + AM/PM)
-def selector_hora_horizontal(label, key_prefix):
+# Generar lista de horas compacta (ej: 01:00, 01:30, 02:00...)
+OPCIONES_HORAS = []
+for h in range(1, 13):
+    OPCIONES_HORAS.append(f"{h:02d}:00")
+    OPCIONES_HORAS.append(f"{h:02d}:30")
+
+# Selector de hora ultra compacto sin desbordamiento
+def selector_hora_compacto(label, key_prefix):
     st.markdown(f"**{label}**")
-    col_input, col_ampm = st.columns([3, 2])
-    with col_input:
-        hora_val = st.time_input(
-            "Hora", 
-            value=datetime.strptime("04:00", "%H:%M").time(), 
-            key=f"{key_prefix}_time", 
-            label_visibility="collapsed"
-        )
-    with col_ampm:
-        ampm = st.selectbox(
-            "Formato", 
-            ["PM", "AM"], 
-            key=f"{key_prefix}_ampm", 
-            label_visibility="collapsed"
-        )
-    
-    hora_formatted = hora_val.strftime("%I:%M").lstrip("0")
-    return f"{hora_formatted} {ampm}"
+    c1, c2 = st.columns([2, 1])
+    with c1:
+        hora_sel = st.selectbox("Hora", OPCIONES_HORAS, index=6, key=f"{key_prefix}_h", label_visibility="collapsed")
+    with c2:
+        ampm_sel = st.selectbox("AMPM", ["PM", "AM"], key=f"{key_prefix}_ampm", label_visibility="collapsed")
+    return f"{hora_sel} {ampm_sel}"
 
 if not GOOGLE_SHEET_URL:
     st.warning("⚠️ Configura GOOGLE_SHEET_URL en los secretos de Streamlit.")
@@ -192,19 +191,15 @@ else:
     with tab_filtro:
         st.subheader("🔍 Búsqueda y Filtros")
         
-        col_f1, col_f2, col_f3 = st.columns(3)
-        with col_f1:
-            filtro_cliente = st.text_input("👤 Cliente / Nombre del Evento:", placeholder="Buscar por cliente o evento...")
-        with col_f2:
-            filtro_telefono = st.text_input("📱 Número de Teléfono:", placeholder="Buscar por número...")
-        with col_f3:
-            rango_fechas = st.date_input("📅 Rango de Fechas:", value=())
+        filtro_cliente = st.text_input("👤 Cliente / Nombre del Evento:", placeholder="Buscar por cliente o evento...")
+        filtro_telefono = st.text_input("📱 Número de Teléfono:", placeholder="Buscar por número...")
+        rango_fechas = st.date_input("📅 Rango de Fechas:", value=())
 
         tiene_filtro_fechas = isinstance(rango_fechas, (list, tuple)) and len(rango_fechas) == 2
         filtro_activo = bool(filtro_cliente.strip() or filtro_telefono.strip() or tiene_filtro_fechas)
 
         if not filtro_activo:
-            st.info("👉 Ingresa un nombre, número de teléfono o selecciona un rango de fechas para ver los resultados.")
+            st.info("👉 Ingresa un nombre, número de teléfono o selecciona un rango de fechas.")
         else:
             df_filtrado = df.copy()
 
@@ -238,45 +233,45 @@ else:
             st.dataframe(df_filtrado, use_container_width=True)
 
     # =========================================================
-    # 3. PESTAÑA: NUEVO
+    # 3. PESTAÑA: NUEVO (FORMULARIO AJUSTADO A PANTALLA)
     # =========================================================
     with tab_nuevo:
-        # Fila 1: Fecha y Tipo de Servicio (Lado a lado)
+        # Fila 1: Fecha y Tipo de Servicio (50% / 50%)
         col_f1, col_f2 = st.columns(2)
         with col_f1:
             fecha_input = st.date_input("📅 Fecha del Servicio", datetime.now())
             fecha_str = fecha_input.strftime("%Y-%m-%d")
         with col_f2:
-            tipo_servicio = st.selectbox("🎭 Tipo de Servicio", ["Show", "Decoración", "Show + Decoración", "Alquiler"])
+            tipo_servicio = st.selectbox("🎭 Servicio", ["Show", "Decoración", "Show + Decoración", "Alquiler"])
 
         st.markdown("---")
 
-        # Fila 2: Nombre del Evento y Nombre del Cliente (Uno debajo del otro)
+        # Fila 2: Nombre de Evento y Cliente
         nombre_evento = st.text_input("🎉 Nombre del Evento", placeholder="ej. Cumpleaños de Gia")
         cliente = st.text_input("👤 Nombre del Cliente", placeholder="ej. María López")
 
         st.markdown("---")
 
-        # Fila 3: Horas en paralelo (Inicio al lado de Invitación, y cada cuadro con su AM/PM horizontal)
+        # Fila 3: Horas adaptables
         col_h1, col_h2 = st.columns(2)
         with col_h1:
-            hora_contrato_str = selector_hora_horizontal("⏰ Hora Inicio / Contrato", "h_inicio")
+            hora_contrato_str = selector_hora_compacto("⏰ Hora Contrato", "h_inicio")
         with col_h2:
-            hora_invitacion_str = selector_hora_horizontal("📩 Hora Citación / Invitación", "h_invitacion")
+            hora_invitacion_str = selector_hora_compacto("📩 Hora Invitación", "h_invitacion")
 
         st.markdown("---")
 
-        # Fila 4: Dirección en una sola línea
-        direccion = st.text_input("📍 Dirección del Evento", placeholder="ej. Av. Las Flores 123, San Isidro")
+        # Fila 4: Dirección
+        direccion = st.text_input("📍 Dirección del Evento", placeholder="ej. Av. Las Flores 123")
 
         st.markdown("---")
 
-        # Fila 5: Teléfono y Agregar Alquiler (Lado a lado)
+        # Fila 5: Teléfono y Opción Alquiler
         col_t1, col_t2 = st.columns(2)
         with col_t1:
-            telefono = st.text_input("📱 Teléfono del Cliente", placeholder="ej. 987654321")
+            telefono = st.text_input("📱 Teléfono", placeholder="ej. 987654321")
         with col_t2:
-            agregar_alquiler = st.radio("📦 ¿Agregar Alquiler?", ["No", "Sí"], horizontal=True)
+            agregar_alquiler = st.radio("📦 ¿Alquiler?", ["No", "Sí"], horizontal=True)
 
         concepto_alquiler = ""
         monto_alquiler = 0
@@ -284,9 +279,9 @@ else:
             st.markdown("##### 📦 Detalles del Alquiler")
             col_alq1, col_alq2 = st.columns(2)
             with col_alq1:
-                concepto_alquiler = st.text_input("Concepto del Alquiler", placeholder="ej. Luces, Sillas, Toldo")
+                concepto_alquiler = st.text_input("Concepto", placeholder="ej. Luces, Toldo")
             with col_alq2:
-                monto_alquiler = st.number_input("Monto del Alquiler (S/)", min_value=0, step=1, value=0)
+                monto_alquiler = st.number_input("Monto (S/)", min_value=0, step=1, value=0)
 
         st.markdown("---")
         st.markdown("### 💰 Montos y Pagos")
@@ -295,48 +290,46 @@ else:
         costo_show = 0
         costo_deco = 0
 
-        # Precios independientes para Show + Decoración
+        # Montos según Tipo de Servicio
         if tipo_servicio == "Show + Decoración":
-            st.info("💡 **Show + Decoración:** Ingresa los montos independientes para cada servicio:")
+            st.info("💡 **Show + Decoración:** Ingresa montos independientes:")
             col_sd1, col_sd2 = st.columns(2)
             with col_sd1:
-                costo_show = st.number_input("Costo del Show (S/)", min_value=0, step=1, value=0, key="c_show")
+                costo_show = st.number_input("Show (S/)", min_value=0, step=1, value=0, key="c_show")
             with col_sd2:
-                costo_deco = st.number_input("Costo de la Decoración (S/)", min_value=0, step=1, value=0, key="c_deco")
+                costo_deco = st.number_input("Decoración (S/)", min_value=0, step=1, value=0, key="c_deco")
 
             costo_total = costo_show + costo_deco + monto_alquiler
-            st.markdown(f"**Desglose:** Show (S/ {costo_show}) + Decoración (S/ {costo_deco})" + (f" + Alquiler (S/ {monto_alquiler})" if monto_alquiler > 0 else ""))
-            st.subheader(f"Costo Total: S/ {costo_total}")
+            st.markdown(f"**Total calculado:** S/ {costo_total}")
 
         elif tipo_servicio in ["Show", "Decoración"]:
-            costo_base = st.number_input(f"Costo Total del Servicio ({tipo_servicio}) (S/)", min_value=0, step=1, value=0, key="c_base")
+            costo_base = st.number_input(f"Costo Servicio ({tipo_servicio}) (S/)", min_value=0, step=1, value=0, key="c_base")
             costo_total = costo_base + monto_alquiler
         else:
             costo_total = monto_alquiler
 
-        # Monto Adelanto y cálculo reactivo de Pendiente
+        # Cálculo de Pagos
         col_p1, col_p2 = st.columns(2)
         with col_p1:
-            monto_adelanto = st.number_input("Monto de Adelanto (S/)", min_value=0, step=1, value=0, key="c_adelanto")
+            monto_adelanto = st.number_input("Adelanto (S/)", min_value=0, step=1, value=0, key="c_adelanto")
 
         monto_pendiente = max(0, int(costo_total) - int(monto_adelanto))
 
         with col_p2:
             st.write("")
-            st.write("")
             if monto_pendiente == 0 and costo_total > 0:
-                st.success("### ✅ CANCELADO")
+                st.success("✅ **CANCELADO**")
                 estado_pago = "Pago completo"
             else:
-                st.warning(f"💵 **MONTO PENDIENTE:** S/ {monto_pendiente}")
+                st.warning(f"💵 **PENDIENTE:** S/ {monto_pendiente}")
                 estado_pago = "Pago parcial"
 
         st.markdown("---")
-        descripcion = st.text_area("📝 Detalles / Observaciones Adicionales", placeholder="Escribe aquí detalles adicionales...")
+        descripcion = st.text_area("📝 Observaciones", placeholder="Detalles adicionales...")
 
         if st.button("💾 Guardar Servicio", use_container_width=True, type="primary"):
             if not GOOGLE_SCRIPT_URL:
-                st.error("⚠️ Falta configurar GOOGLE_SCRIPT_URL en los secretos.")
+                st.error("⚠️ Falta configurar GOOGLE_SCRIPT_URL.")
             else:
                 desglose_partes = []
                 if tipo_servicio == "Show + Decoración":
@@ -373,10 +366,10 @@ else:
                 try:
                     res = requests.post(GOOGLE_SCRIPT_URL, data=json.dumps(payload))
                     if res.status_code == 200:
-                        st.success("🎉 ¡El servicio fue guardado con éxito!")
+                        st.success("🎉 ¡Servicio guardado con éxito!")
                         st.cache_data.clear()
                         st.rerun()
                     else:
-                        st.error(f"Error HTTP {res.status_code} al guardar en Google Sheets.")
+                        st.error(f"Error HTTP {res.status_code}")
                 except Exception as e:
                     st.error(f"Error de conexión: {e}")
