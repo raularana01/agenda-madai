@@ -8,44 +8,47 @@ from datetime import datetime, timedelta
 # Configuración de la página
 st.set_page_config(page_title="Agenda Madai", page_icon="📅", layout="centered")
 
-# Estilos CSS optimizados para dispositivos móviles (Sin scroll lateral)
+# Estilos CSS para obligar a que las columnas de hora NO se apilen en móviles
 st.markdown("""
 <style>
-    /* 1. Bloqueo estricto de scroll horizontal */
+    /* Evitar scroll horizontal global */
     html, body, [data-testid="stAppViewContainer"], .main {
         overflow-x: hidden !important;
     }
     .main .block-container {
         padding-top: 0.5rem !important;
         padding-bottom: 0.5rem !important;
-        padding-left: 0.4rem !important;
-        padding-right: 0.4rem !important;
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
         max-width: 100% !important;
     }
 
-    /* 2. Eliminación de espacios verticales innecesarios entre campos */
+    /* Reducir espacio vertical entre elementos */
     div[data-testid="stVerticalBlock"] > div {
         margin-bottom: -10px !important;
         padding-bottom: 0px !important;
     }
-    
-    /* 3. Corrección para los selectores de horas (evita sobreposición) */
-    .hora-inline-container {
-        display: flex;
-        flex-direction: row;
-        gap: 4px;
-        align-items: center;
-        width: 100%;
-    }
-    
-    /* Reducir padding de inputs dentro de la sección de hora */
-    div[data-testid="stTextInput"] input {
-        padding-left: 8px !important;
-        padding-right: 8px !important;
-        text-align: center;
+
+    /* FORZAR que las sub-columnas de horas NO se apilen en pantallas móviles */
+    div[data-testid="column"] {
+        min-width: 0px !important;
     }
 
-    /* Estilos de tarjetas de eventos */
+    .time-row {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 6px !important;
+        width: 100% !important;
+    }
+
+    /* Reducir márgenes internos de inputs de hora */
+    div[data-testid="stTextInput"] input {
+        text-align: center !important;
+        padding: 4px 6px !important;
+    }
+
+    /* Tarjetas de eventos */
     .card-hoy {
         background-color: #E8F5E9;
         border-left: 5px solid #2E7D32;
@@ -236,7 +239,7 @@ else:
             st.dataframe(df_filtrado, use_container_width=True)
 
     # =========================================================
-    # 3. PESTAÑA: NUEVO (DISTRIBUCIÓN COMPACTA Y SIN OVERFLOW)
+    # 3. PESTAÑA: NUEVO (HORAS OBLIGADAS LADO A LADO EN MÓVIL)
     # =========================================================
     with tab_nuevo:
         col_f1, col_f2 = st.columns(2)
@@ -252,26 +255,23 @@ else:
         with col_e2:
             cliente = st.text_input("👤 Cliente", placeholder="ej. María López")
 
-        # CONTENEDOR DE HORAS (DISTRIBUCIÓN EQUITATIVA Y LIMPIA EN 2 COLUMNAS)
-        col_hora_contrato, col_hora_citacion = st.columns(2)
+        # HORA CONTRATO (FORZADA EN 1 SOLA FILA)
+        st.caption("⏰ **Hora Contrato**")
+        c1, c2 = st.columns([2, 1])
+        with c1:
+            h_contrato_val = st.text_input("HC", value="04:00", key="hc_val", label_visibility="collapsed")
+        with c2:
+            ampm_contrato = st.selectbox("AP1", ["PM", "AM"], key="hc_ap", label_visibility="collapsed")
+        hora_contrato_str = f"{h_contrato_val.strip()} {ampm_contrato}"
 
-        with col_hora_contrato:
-            st.caption("⏰ **Hora Contrato**")
-            sub1, sub2 = st.columns([1.1, 0.9])
-            with sub1:
-                h_contrato_val = st.text_input("HC", value="04:00", key="hc_val", label_visibility="collapsed")
-            with sub2:
-                ampm_contrato = st.selectbox("AP1", ["PM", "AM"], key="hc_ap", label_visibility="collapsed")
-            hora_contrato_str = f"{h_contrato_val.strip()} {ampm_contrato}"
-
-        with col_hora_citacion:
-            st.caption("📩 **Hora Citación**")
-            sub3, sub4 = st.columns([1.1, 0.9])
-            with sub3:
-                h_citacion_val = st.text_input("HI", value="04:00", key="hi_val", label_visibility="collapsed")
-            with sub4:
-                ampm_citacion = st.selectbox("AP2", ["PM", "AM"], key="hi_ap", label_visibility="collapsed")
-            hora_invitacion_str = f"{h_citacion_val.strip()} {ampm_citacion}"
+        # HORA CITACIÓN (FORZADA EN 1 SOLA FILA)
+        st.caption("📩 **Hora Citación**")
+        c3, c4 = st.columns([2, 1])
+        with c3:
+            h_citacion_val = st.text_input("HI", value="04:00", key="hi_val", label_visibility="collapsed")
+        with c4:
+            ampm_citacion = st.selectbox("AP2", ["PM", "AM"], key="hi_ap", label_visibility="collapsed")
+        hora_invitacion_str = f"{h_citacion_val.strip()} {ampm_citacion}"
 
         direccion = st.text_input("📍 Dirección", placeholder="ej. Av. Las Flores 123")
 
