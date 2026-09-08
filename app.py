@@ -8,9 +8,18 @@ from datetime import datetime, timedelta
 # Configuración de la página
 st.set_page_config(page_title="Agenda Madai", page_icon="📅", layout="wide")
 
-# Estilos CSS
+# Estilos CSS generales y forzado global de Flexbox para evitar apilamiento vertical
 st.markdown("""
 <style>
+    /* Forzar que las columnas de Streamlit se mantengan siempre horizontales */
+    [data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+    }
+    
     .card-hoy {
         background-color: #E8F5E9;
         border-left: 6px solid #2E7D32;
@@ -69,14 +78,24 @@ def cargar_datos(url):
         st.error(f"Error al conectar con Google Sheets: {e}")
         return pd.DataFrame()
 
-# Función para selector de hora único (Cuadro único + AM/PM)
-def selector_hora_unica(label, key_prefix):
+# Función para selector de hora en una sola línea horizontal (Cuadro + AM/PM)
+def selector_hora_horizontal(label, key_prefix):
     st.markdown(f"**{label}**")
-    c1, c2 = st.columns([3, 2])
-    with c1:
-        hora_val = st.time_input("Seleccionar hora", value=datetime.strptime("04:00", "%H:%M").time(), key=f"{key_prefix}_time", label_visibility="collapsed")
-    with c2:
-        ampm = st.selectbox("Formato", ["PM", "AM"], key=f"{key_prefix}_ampm", label_visibility="collapsed")
+    col_input, col_ampm = st.columns([3, 2])
+    with col_input:
+        hora_val = st.time_input(
+            "Hora", 
+            value=datetime.strptime("04:00", "%H:%M").time(), 
+            key=f"{key_prefix}_time", 
+            label_visibility="collapsed"
+        )
+    with col_ampm:
+        ampm = st.selectbox(
+            "Formato", 
+            ["PM", "AM"], 
+            key=f"{key_prefix}_ampm", 
+            label_visibility="collapsed"
+        )
     
     hora_formatted = hora_val.strftime("%I:%M").lstrip("0")
     return f"{hora_formatted} {ampm}"
@@ -219,10 +238,10 @@ else:
             st.dataframe(df_filtrado, use_container_width=True)
 
     # =========================================================
-    # 3. PESTAÑA: NUEVO (CONTROLES REACTIVOS EN TIEMPO REAL)
+    # 3. PESTAÑA: NUEVO
     # =========================================================
     with tab_nuevo:
-        # Fila 1: Fecha y Tipo de Servicio
+        # Fila 1: Fecha y Tipo de Servicio (Lado a lado)
         col_f1, col_f2 = st.columns(2)
         with col_f1:
             fecha_input = st.date_input("📅 Fecha del Servicio", datetime.now())
@@ -232,27 +251,27 @@ else:
 
         st.markdown("---")
 
-        # Fila 2: Nombre del Evento y Cliente (uno abajo del otro)
+        # Fila 2: Nombre del Evento y Nombre del Cliente (Uno debajo del otro)
         nombre_evento = st.text_input("🎉 Nombre del Evento", placeholder="ej. Cumpleaños de Gia")
         cliente = st.text_input("👤 Nombre del Cliente", placeholder="ej. María López")
 
         st.markdown("---")
 
-        # Fila 3: Horas (Un solo cuadro de hora + selector AM/PM)
+        # Fila 3: Horas en paralelo (Inicio al lado de Invitación, y cada cuadro con su AM/PM horizontal)
         col_h1, col_h2 = st.columns(2)
         with col_h1:
-            hora_contrato_str = selector_hora_unica("⏰ Hora Inicio / Contrato", "h_inicio")
+            hora_contrato_str = selector_hora_horizontal("⏰ Hora Inicio / Contrato", "h_inicio")
         with col_h2:
-            hora_invitacion_str = selector_hora_unica("📩 Hora Citación / Invitación", "h_invitacion")
+            hora_invitacion_str = selector_hora_horizontal("📩 Hora Citación / Invitación", "h_invitacion")
 
         st.markdown("---")
 
-        # Fila 4: Dirección en una línea completa
+        # Fila 4: Dirección en una sola línea
         direccion = st.text_input("📍 Dirección del Evento", placeholder="ej. Av. Las Flores 123, San Isidro")
 
         st.markdown("---")
 
-        # Fila 5: Teléfono y Alquiler juntos
+        # Fila 5: Teléfono y Agregar Alquiler (Lado a lado)
         col_t1, col_t2 = st.columns(2)
         with col_t1:
             telefono = st.text_input("📱 Teléfono del Cliente", placeholder="ej. 987654321")
@@ -276,7 +295,7 @@ else:
         costo_show = 0
         costo_deco = 0
 
-        # Montos según Tipo de Servicio (Reactivo fuera del form)
+        # Precios independientes para Show + Decoración
         if tipo_servicio == "Show + Decoración":
             st.info("💡 **Show + Decoración:** Ingresa los montos independientes para cada servicio:")
             col_sd1, col_sd2 = st.columns(2)
@@ -286,7 +305,7 @@ else:
                 costo_deco = st.number_input("Costo de la Decoración (S/)", min_value=0, step=1, value=0, key="c_deco")
 
             costo_total = costo_show + costo_deco + monto_alquiler
-            st.markdown(f"**Desglose calculado:** Show (S/ {costo_show}) + Decoración (S/ {costo_deco})" + (f" + Alquiler (S/ {monto_alquiler})" if monto_alquiler > 0 else ""))
+            st.markdown(f"**Desglose:** Show (S/ {costo_show}) + Decoración (S/ {costo_deco})" + (f" + Alquiler (S/ {monto_alquiler})" if monto_alquiler > 0 else ""))
             st.subheader(f"Costo Total: S/ {costo_total}")
 
         elif tipo_servicio in ["Show", "Decoración"]:
@@ -295,7 +314,7 @@ else:
         else:
             costo_total = monto_alquiler
 
-        # Cálculo dinámico del pago pendiente en tiempo real
+        # Monto Adelanto y cálculo reactivo de Pendiente
         col_p1, col_p2 = st.columns(2)
         with col_p1:
             monto_adelanto = st.number_input("Monto de Adelanto (S/)", min_value=0, step=1, value=0, key="c_adelanto")
