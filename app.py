@@ -8,44 +8,50 @@ from datetime import datetime, timedelta
 # Configuración de la página
 st.set_page_config(page_title="Agenda Madai", page_icon="📅", layout="centered")
 
-# CSS para evitar scroll horizontal, eliminar espacios vacíos y ajustar campos
+# Estilos CSS optimizados para dispositivos móviles (Sin scroll lateral)
 st.markdown("""
 <style>
-    /* 1. Control estricto del ancho para evitar scroll horizontal */
-    html, body, [data-testid="stAppViewContainer"] {
+    /* 1. Bloqueo estricto de scroll horizontal */
+    html, body, [data-testid="stAppViewContainer"], .main {
         overflow-x: hidden !important;
     }
-    
     .main .block-container {
         padding-top: 0.5rem !important;
         padding-bottom: 0.5rem !important;
-        padding-left: 0.5rem !important;
-        padding-right: 0.5rem !important;
+        padding-left: 0.4rem !important;
+        padding-right: 0.4rem !important;
         max-width: 100% !important;
     }
 
-    /* 2. Reducción drástica de espacio vertical entre campos */
+    /* 2. Eliminación de espacios verticales innecesarios entre campos */
     div[data-testid="stVerticalBlock"] > div {
-        margin-bottom: -12px !important;
+        margin-bottom: -10px !important;
         padding-bottom: 0px !important;
     }
-
-    /* 3. Estilo para los contenedores de hora ultra compactos */
-    .time-box-wrapper {
+    
+    /* 3. Corrección para los selectores de horas (evita sobreposición) */
+    .hora-inline-container {
         display: flex;
         flex-direction: row;
         gap: 4px;
         align-items: center;
         width: 100%;
     }
+    
+    /* Reducir padding de inputs dentro de la sección de hora */
+    div[data-testid="stTextInput"] input {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+        text-align: center;
+    }
 
-    /* Tarjetas de eventos */
+    /* Estilos de tarjetas de eventos */
     .card-hoy {
         background-color: #E8F5E9;
         border-left: 5px solid #2E7D32;
         padding: 8px;
         border-radius: 6px;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
         color: #1B5E20;
     }
     .card-proximo {
@@ -53,7 +59,7 @@ st.markdown("""
         border-left: 5px solid #1565C0;
         padding: 8px;
         border-radius: 6px;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
         color: #0D47A1;
     }
     .card-header {
@@ -230,10 +236,9 @@ else:
             st.dataframe(df_filtrado, use_container_width=True)
 
     # =========================================================
-    # 3. PESTAÑA: NUEVO (FORMULARIO SIN SCROLL Y HORAS EN UNA FILA)
+    # 3. PESTAÑA: NUEVO (DISTRIBUCIÓN COMPACTA Y SIN OVERFLOW)
     # =========================================================
     with tab_nuevo:
-        # Fecha y Tipo de Servicio
         col_f1, col_f2 = st.columns(2)
         with col_f1:
             fecha_input = st.date_input("📅 Fecha", datetime.now())
@@ -241,38 +246,35 @@ else:
         with col_f2:
             tipo_servicio = st.selectbox("🎭 Servicio", ["Show", "Decoración", "Show + Decoración", "Alquiler"])
 
-        # Nombre de Evento y Cliente
         col_e1, col_e2 = st.columns(2)
         with col_e1:
             nombre_evento = st.text_input("🎉 Evento", placeholder="ej. Cumpleaños Gia")
         with col_e2:
             cliente = st.text_input("👤 Cliente", placeholder="ej. María López")
 
-        # SECCIÓN DE HORAS: Contrato y Citación colocadas lado a lado en las dos columnas principales
-        col_h1, col_h2 = st.columns(2)
-        
-        with col_h1:
-            st.caption("**⏰ Hora Contrato**")
-            c_txt1, c_sel1 = st.columns([0.6, 0.4])
-            with c_txt1:
-                h_contrato_val = st.text_input("Hora C.", value="04:00", key="h_cnt_t", label_visibility="collapsed")
-            with c_sel1:
-                ampm_contrato = st.selectbox("AMPM C.", ["PM", "AM"], key="h_cnt_ap", label_visibility="collapsed")
+        # CONTENEDOR DE HORAS (DISTRIBUCIÓN EQUITATIVA Y LIMPIA EN 2 COLUMNAS)
+        col_hora_contrato, col_hora_citacion = st.columns(2)
+
+        with col_hora_contrato:
+            st.caption("⏰ **Hora Contrato**")
+            sub1, sub2 = st.columns([1.1, 0.9])
+            with sub1:
+                h_contrato_val = st.text_input("HC", value="04:00", key="hc_val", label_visibility="collapsed")
+            with sub2:
+                ampm_contrato = st.selectbox("AP1", ["PM", "AM"], key="hc_ap", label_visibility="collapsed")
             hora_contrato_str = f"{h_contrato_val.strip()} {ampm_contrato}"
 
-        with col_h2:
-            st.caption("**📩 Hora Citación**")
-            c_txt2, c_sel2 = st.columns([0.6, 0.4])
-            with c_txt2:
-                h_citacion_val = st.text_input("Hora I.", value="04:00", key="h_cit_t", label_visibility="collapsed")
-            with c_sel2:
-                ampm_citacion = st.selectbox("AMPM I.", ["PM", "AM"], key="h_cit_ap", label_visibility="collapsed")
+        with col_hora_citacion:
+            st.caption("📩 **Hora Citación**")
+            sub3, sub4 = st.columns([1.1, 0.9])
+            with sub3:
+                h_citacion_val = st.text_input("HI", value="04:00", key="hi_val", label_visibility="collapsed")
+            with sub4:
+                ampm_citacion = st.selectbox("AP2", ["PM", "AM"], key="hi_ap", label_visibility="collapsed")
             hora_invitacion_str = f"{h_citacion_val.strip()} {ampm_citacion}"
 
-        # Dirección
         direccion = st.text_input("📍 Dirección", placeholder="ej. Av. Las Flores 123")
 
-        # Teléfono y Opción de Alquiler
         col_t1, col_t2 = st.columns(2)
         with col_t1:
             telefono = st.text_input("📱 Teléfono", placeholder="ej. 987654321")
@@ -306,7 +308,6 @@ else:
         else:
             costo_total = monto_alquiler
 
-        # Pagos
         col_p1, col_p2 = st.columns(2)
         with col_p1:
             monto_adelanto = st.number_input("Adelanto (S/)", min_value=0, step=1, value=0, key="c_adelanto")
@@ -314,12 +315,12 @@ else:
         monto_pendiente = max(0, int(costo_total) - int(monto_adelanto))
 
         with col_p2:
-            st.caption("**Estado de Pago**")
+            st.caption("Estado de Pago")
             if monto_pendiente == 0 and costo_total > 0:
-                st.success("✅ **CANCELADO**")
+                st.success("✅ CANCELADO")
                 estado_pago = "Pago completo"
             else:
-                st.warning(f"💵 **PENDIENTE:** S/ {monto_pendiente}")
+                st.warning(f"💵 PENDIENTE: S/ {monto_pendiente}")
                 estado_pago = "Pago parcial"
 
         descripcion = st.text_area("📝 Observaciones", placeholder="Detalles adicionales...")
