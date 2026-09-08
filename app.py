@@ -8,9 +8,23 @@ from datetime import datetime, timedelta
 # Configuración de la página
 st.set_page_config(page_title="Agenda Madai", page_icon="📅", layout="centered")
 
-# Estilos CSS
+# Estilos CSS incluyendo imagen de fondo y ajustes estéticos
 st.markdown("""
 <style>
+    /* Imagen de fondo desde GitHub */
+    .stApp {
+        background-image: url("https://raw.githubusercontent.com/decoracionesmadai/agenda-madai/main/fondo.jpeg");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }
+
+    /* Fondo semitransparente para el contenedor principal para mejorar legibilidad */
+    [data-testid="stAppViewContainer"] > .main {
+        background-color: rgba(255, 255, 255, 0.88) !important;
+    }
+
     /* Bloqueo de scroll horizontal */
     html, body, [data-testid="stAppViewContainer"], .main {
         overflow-x: hidden !important;
@@ -42,7 +56,7 @@ st.markdown("""
 
     /* Tarjetas de eventos */
     .card-hoy {
-        background-color: #E8F5E9;
+        background-color: rgba(232, 245, 233, 0.95);
         border-left: 5px solid #2E7D32;
         padding: 8px;
         border-radius: 6px;
@@ -50,7 +64,7 @@ st.markdown("""
         color: #1B5E20;
     }
     .card-proximo {
-        background-color: #E3F2FD;
+        background-color: rgba(227, 242, 253, 0.95);
         border-left: 5px solid #1565C0;
         padding: 8px;
         border-radius: 6px;
@@ -70,7 +84,12 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("📅 Agenda Virtual Madai")
+# Encabezado con Logo a la izquierda y Título reducido
+col_logo, col_titulo = st.columns([1, 4])
+with col_logo:
+    st.image("logo.jpeg", width=75)
+with col_titulo:
+    st.title("📅 Agenda Madai")
 
 # Control del menú mediante session_state
 if "menu_activo" not in st.session_state:
