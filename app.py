@@ -8,10 +8,10 @@ from datetime import datetime, timedelta
 # Configuración de la página
 st.set_page_config(page_title="Agenda Madai", page_icon="📅", layout="wide")
 
-# Estilos CSS generales y FORZADO DE COLUMNAS LADO A LADO
+# Estilos CSS y forzado de diseño en filas
 st.markdown("""
 <style>
-    /* Forzar que las columnas dentro del formulario se mantengan lado a lado (Flexbox) */
+    /* Forzar diseño horizontal en columnas de formulario */
     [data-testid="stForm"] [data-testid="stHorizontalBlock"] {
         display: flex !important;
         flex-direction: row !important;
@@ -81,6 +81,18 @@ def cargar_datos(url):
     except Exception as e:
         st.error(f"Error al conectar con Google Sheets: {e}")
         return pd.DataFrame()
+
+# Función para construir selector de hora dinámico AM/PM
+def selector_hora_ampm(label, key_prefix, default_hora=4, default_min=0, default_ampm="PM"):
+    st.markdown(f"**{label}**")
+    col_h, col_m, col_p = st.columns([2, 2, 2])
+    with col_h:
+        hora = st.number_input("Hora", min_value=1, max_value=12, value=default_hora, key=f"{key_prefix}_h")
+    with col_m:
+        minuto = st.number_input("Min", min_value=0, max_value=59, value=default_min, step=5, key=f"{key_prefix}_m")
+    with col_p:
+        ampm = st.selectbox("AM/PM", ["AM", "PM"], index=1 if default_ampm == "PM" else 0, key=f"{key_prefix}_p")
+    return f"{hora:02d}:{minuto:02d} {ampm}"
 
 if not GOOGLE_SHEET_URL:
     st.warning("⚠️ Configura GOOGLE_SHEET_URL en los secretos de Streamlit.")
@@ -220,107 +232,97 @@ else:
             st.dataframe(df_filtrado, use_container_width=True)
 
     # =========================================================
-    # 3. PESTAÑA: NUEVO (FORZADO HORIZONTAL CON CSS)
+    # 3. PESTAÑA: NUEVO
     # =========================================================
     with tab_nuevo:
-        # Fila superior: Fecha y Tipo de servicio
-        col_s1, col_s2 = st.columns(2)
-        with col_s1:
-            fecha_input = st.date_input("1. Fecha del Servicio", datetime.now())
-            fecha_str = fecha_input.strftime("%Y-%m-%d")
-        with col_s2:
-            tipo_servicio = st.selectbox("2. Tipo de Servicio", ["Show", "Decoración", "Show + Decoración", "Alquiler"])
-
         with st.form("form_servicio", clear_on_submit=True):
-            nombre_evento = ""
-            hora_contrato_str = ""
-            hora_invitacion_str = ""
-            agregar_alquiler = "No"
-            concepto_alquiler = ""
-            monto_alquiler = 0
-
-            if tipo_servicio == "Alquiler":
-                col1, col2 = st.columns(2)
-                with col1:
-                    concepto_alquiler = st.text_input("Concepto de Alquiler", placeholder="ej. Sillas, Toldo, Luces")
-                    hora_entrega_input = st.time_input("Hora de Entrega", value=datetime.strptime("15:00", "%H:%M").time())
-                    hora_contrato_str = hora_entrega_input.strftime("%I:%M %p")
-                    direccion = st.text_input("Dirección de Entrega")
-
-                with col2:
-                    cliente = st.text_input("Nombre del Cliente")
-                    telefono = st.text_input("Teléfono del Cliente")
-                    nombre_evento = f"Alquiler - {concepto_alquiler}" if concepto_alquiler else "Alquiler"
-                    hora_invitacion_str = hora_contrato_str
-
-            elif tipo_servicio == "Decoración":
-                col1, col2 = st.columns(2)
-                with col1:
-                    nombre_evento = st.text_input("Nombre del Evento", placeholder="ej. Decoración Cumpleaños")
-                    hc_input = st.time_input("Hora Contrato / Instalación", value=datetime.strptime("10:00", "%H:%M").time())
-                    hora_contrato_str = hc_input.strftime("%I:%M %p")
-                    hora_invitacion_str = hora_contrato_str
-                    direccion = st.text_input("Dirección del Evento")
-
-                with col2:
-                    cliente = st.text_input("Nombre del Cliente")
-                    telefono = st.text_input("Teléfono del Cliente")
-
-            else:  # Show o Show + Decoración
-                # Fila 1: Nombre de Evento y Cliente
-                c_a1, c_a2 = st.columns(2)
-                with c_a1:
-                    nombre_evento = st.text_input("Nombre del Evento", placeholder="ej. Cumpleaños de Gia")
-                with c_a2:
-                    cliente = st.text_input("Nombre del Cliente")
-
-                # Fila 2: Hora Contrato y Hora Citación
-                c_b1, c_b2 = st.columns(2)
-                with c_b1:
-                    hc_input = st.time_input("Hora Contrato / Inicio Show", value=datetime.strptime("16:00", "%H:%M").time())
-                    hora_contrato_str = hc_input.strftime("%I:%M %p")
-                with c_b2:
-                    hi_input = st.time_input("Hora Citación / Invitación", value=datetime.strptime("15:00", "%H:%M").time())
-                    hora_invitacion_str = hi_input.strftime("%I:%M %p")
-
-                # Fila 3: Dirección y (Teléfono + Agregar Alquiler)
-                c_c1, c_c2 = st.columns(2)
-                with c_c1:
-                    direccion = st.text_input("Dirección del Evento")
-                with c_c2:
-                    c_t1, c_t2 = st.columns(2)
-                    with c_t1:
-                        telefono = st.text_input("Teléfono del Cliente")
-                    with c_t2:
-                        agregar_alquiler = st.radio("¿Agregar Alquiler?", ["No", "Sí"], horizontal=True)
-
-                if agregar_alquiler == "Sí":
-                    st.markdown("##### 📦 Detalles del Alquiler Agregado")
-                    col_alq1, col_alq2 = st.columns(2)
-                    with col_alq1:
-                        concepto_alquiler = st.text_input("Concepto del Alquiler Agregado", placeholder="ej. Luces, Sillas")
-                    with col_alq2:
-                        monto_alquiler = st.number_input("Monto del Alquiler Agregado (S/)", min_value=0, step=1, value=0)
+            # 1. Fecha y Tipo de Servicio JUNTOS
+            col_f1, col_f2 = st.columns(2)
+            with col_f1:
+                fecha_input = st.date_input("📅 Fecha del Servicio", datetime.now())
+                fecha_str = fecha_input.strftime("%Y-%m-%d")
+            with col_f2:
+                tipo_servicio = st.selectbox("🎭 Tipo de Servicio", ["Show", "Decoración", "Show + Decoración", "Alquiler"])
 
             st.markdown("---")
 
-            # Sección de Pago
+            # 2. Nombre del Evento y Cliente UNO ABAJO DEL OTRO
+            nombre_evento = st.text_input("🎉 Nombre del Evento", placeholder="ej. Cumpleaños de Gia")
+            cliente = st.text_input("👤 Nombre del Cliente", placeholder="ej. María López")
+
+            st.markdown("---")
+
+            # 3. Horas con selector dinámico AM / PM
+            col_h1, col_h2 = st.columns(2)
+            with col_h1:
+                hora_contrato_str = selector_hora_ampm("⏰ Hora Contrato / Inicio", "hc", default_hora=4, default_ampm="PM")
+            with col_h2:
+                hora_invitacion_str = selector_hora_ampm("📩 Hora Citación / Invitación", "hi", default_hora=3, default_ampm="PM")
+
+            st.markdown("---")
+
+            # 4. Dirección en UNA SOLA LÍNEA
+            direccion = st.text_input("📍 Dirección del Evento", placeholder="ej. Av. Las Flores 123, San Isidro")
+
+            st.markdown("---")
+
+            # 5. Teléfono y ¿Agregar Alquiler? JUNTOS
+            col_t1, col_t2 = st.columns(2)
+            with col_t1:
+                telefono = st.text_input("📱 Teléfono del Cliente", placeholder="ej. 987654321")
+            with col_t2:
+                agregar_alquiler = st.radio("📦 ¿Agregar Alquiler?", ["No", "Sí"], horizontal=True)
+
+            concepto_alquiler = ""
+            monto_alquiler = 0
+            if agregar_alquiler == "Sí" or tipo_servicio == "Alquiler":
+                st.markdown("##### 📦 Detalles del Alquiler")
+                col_alq1, col_alq2 = st.columns(2)
+                with col_alq1:
+                    concepto_alquiler = st.text_input("Concepto del Alquiler", placeholder="ej. Luces, Sillas, Toldo")
+                with col_alq2:
+                    monto_alquiler = st.number_input("Monto del Alquiler (S/)", min_value=0, step=1, value=0)
+
+            st.markdown("---")
+            st.markdown("### 💰 Montos y Pagos")
+
+            costo_total = 0
+            costo_show = 0
+            costo_deco = 0
+
+            # 6. Lógica de Precios según Tipo de Servicio
+            if tipo_servicio == "Show + Decoración":
+                st.info("💡 **Show + Decoración:** Ingresa los precios independientes para cada servicio:")
+                col_sd1, col_sd2 = st.columns(2)
+                with col_sd1:
+                    costo_show = st.number_input("Costo del Show (S/)", min_value=0, step=1, value=0)
+                with col_sd2:
+                    costo_deco = st.number_input("Costo de la Decoración (S/)", min_value=0, step=1, value=0)
+
+                costo_total = costo_show + costo_deco + monto_alquiler
+                st.markdown(f"**Desglose:** Show (S/ {costo_show}) + Decoración (S/ {costo_deco})" + (f" + Alquiler (S/ {monto_alquiler})" if monto_alquiler > 0 else ""))
+                st.subheader(f"Costo Total Calculado: S/ {costo_total}")
+
+            elif tipo_servicio in ["Show", "Decoración"]:
+                costo_base = st.number_input(f"Costo Total del Servicio ({tipo_servicio}) (S/)", min_value=0, step=1, value=0)
+                costo_total = costo_base + monto_alquiler
+            else:  # Alquiler solo
+                costo_total = monto_alquiler
+
+            # 7. Adelanto y Cálculo de Pendiente (Sin radio de estado)
             col_p1, col_p2 = st.columns(2)
             with col_p1:
-                costo_total = st.number_input("Costo Total del Servicio (S/)", min_value=0, step=1, value=0)
-                estado_pago = st.radio("Estado de Pago", ["Pago completo", "Pago parcial"], index=1, horizontal=True)
-
-            monto_adelanto = 0
-            monto_pendiente = 0
+                monto_adelanto = st.number_input("Monto de Adelanto (S/)", min_value=0, max_value=int(costo_total) if costo_total > 0 else 99999, step=1, value=0)
+            
+            monto_pendiente = max(0, int(costo_total) - int(monto_adelanto))
 
             with col_p2:
-                if estado_pago == "Pago parcial":
-                    monto_adelanto = st.number_input("Monto de Adelanto (S/)", min_value=0, max_value=int(costo_total) if costo_total > 0 else 99999, step=1, value=0)
-                    monto_pendiente = max(0, int(costo_total) - int(monto_adelanto))
-                    st.warning(f"💵 **PAGO PENDIENTE:** S/ {monto_pendiente}")
-                else:
-                    monto_adelanto = int(costo_total)
+                if monto_pendiente == 0 and costo_total > 0:
                     st.success("### ✅ CANCELADO")
+                    estado_pago = "Pago completo"
+                else:
+                    st.warning(f"💵 **MONTO PENDIENTE:** S/ {monto_pendiente}")
+                    estado_pago = "Pago parcial"
 
             st.markdown("---")
             descripcion = st.text_area("📝 Detalles / Observaciones Adicionales", placeholder="Escribe aquí detalles adicionales...")
@@ -331,14 +333,20 @@ else:
                 if not GOOGLE_SCRIPT_URL:
                     st.error("⚠️ Falta configurar GOOGLE_SCRIPT_URL en los secretos.")
                 else:
+                    # Desglose personalizado
                     desglose_partes = []
-                    if tipo_servicio != "Alquiler":
+                    if tipo_servicio == "Show + Decoración":
+                        desglose_partes.append(f"Show: S/ {costo_show}")
+                        desglose_partes.append(f"Decoración: S/ {costo_deco}")
+                    elif tipo_servicio != "Alquiler":
                         desglose_partes.append(f"{tipo_servicio}: S/ {costo_total - monto_alquiler}")
-                    if concepto_alquiler:
-                        desglose_partes.append(f"Alquiler: S/ {monto_alquiler} ({concepto_alquiler})")
-                    if estado_pago == "Pago parcial":
-                        desglose_partes.append(f"Pendiente: S/ {monto_pendiente}")
                     
+                    if concepto_alquiler:
+                        desglose_partes.append(f"Alquiler ({concepto_alquiler}): S/ {monto_alquiler}")
+                    
+                    if monto_pendiente > 0:
+                        desglose_partes.append(f"Pendiente: S/ {monto_pendiente}")
+
                     desglose_str = " | ".join(desglose_partes) if desglose_partes else f"S/ {costo_total}"
 
                     payload = {
