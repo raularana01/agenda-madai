@@ -11,18 +11,10 @@ st.set_page_config(page_title="Agenda Madai", page_icon="📅", layout="centered
 # Estilos CSS optimizados para móviles sin scroll lateral
 st.markdown("""
 <style>
-    /* Eliminación total de márgenes extra y scroll horizontal */
     .main .block-container {
         padding-left: 0.8rem !important;
         padding-right: 0.8rem !important;
         max-width: 100% !important;
-    }
-    
-    /* Contenedores flex limpios */
-    .time-container {
-        display: flex;
-        gap: 4px;
-        align-items: center;
     }
     
     .card-hoy {
@@ -83,21 +75,24 @@ def cargar_datos(url):
         st.error(f"Error al conectar con Google Sheets: {e}")
         return pd.DataFrame()
 
-# Generar lista de horas compacta (ej: 01:00, 01:30, 02:00...)
-OPCIONES_HORAS = []
-for h in range(1, 13):
-    OPCIONES_HORAS.append(f"{h:02d}:00")
-    OPCIONES_HORAS.append(f"{h:02d}:30")
+# Generación automática de lista con formato completo hh:mm AM/PM en un solo cuadro
+HORAS_OPCIONES = []
+for h in range(8, 24):  # Desde 8:00 AM hasta 11:30 PM
+    ampm = "AM" if h < 12 else "PM"
+    h12 = h if h <= 12 else h - 12
+    if h12 == 0:
+        h12 = 12
+    HORAS_OPCIONES.append(f"{h12:02d}:00 {ampm}")
+    HORAS_OPCIONES.append(f"{h12:02d}:30 {ampm}")
 
-# Selector de hora ultra compacto sin desbordamiento
-def selector_hora_compacto(label, key_prefix):
-    st.markdown(f"**{label}**")
-    c1, c2 = st.columns([2, 1])
-    with c1:
-        hora_sel = st.selectbox("Hora", OPCIONES_HORAS, index=6, key=f"{key_prefix}_h", label_visibility="collapsed")
-    with c2:
-        ampm_sel = st.selectbox("AMPM", ["PM", "AM"], key=f"{key_prefix}_ampm", label_visibility="collapsed")
-    return f"{hora_sel} {ampm_sel}"
+# Función que genera solo UN cuadro de selección desplegable
+def selector_hora_unica(label, key, default_index=16):
+    return st.selectbox(
+        label, 
+        options=HORAS_OPCIONES, 
+        index=default_index, 
+        key=key
+    )
 
 if not GOOGLE_SHEET_URL:
     st.warning("⚠️ Configura GOOGLE_SHEET_URL en los secretos de Streamlit.")
@@ -233,10 +228,10 @@ else:
             st.dataframe(df_filtrado, use_container_width=True)
 
     # =========================================================
-    # 3. PESTAÑA: NUEVO (FORMULARIO AJUSTADO A PANTALLA)
+    # 3. PESTAÑA: NUEVO (UN SOLO CUADRO DE HORA COMPACTO)
     # =========================================================
     with tab_nuevo:
-        # Fila 1: Fecha y Tipo de Servicio (50% / 50%)
+        # Fila 1: Fecha y Tipo de Servicio
         col_f1, col_f2 = st.columns(2)
         with col_f1:
             fecha_input = st.date_input("📅 Fecha del Servicio", datetime.now())
@@ -252,12 +247,12 @@ else:
 
         st.markdown("---")
 
-        # Fila 3: Horas adaptables
+        # Fila 3: Horas lado a lado en un solo cuadro selector cada una
         col_h1, col_h2 = st.columns(2)
         with col_h1:
-            hora_contrato_str = selector_hora_compacto("⏰ Hora Contrato", "h_inicio")
+            hora_contrato_str = selector_hora_unica("⏰ Hora Contrato", "h_contrato_single", default_index=16)
         with col_h2:
-            hora_invitacion_str = selector_hora_compacto("📩 Hora Invitación", "h_invitacion")
+            hora_invitacion_str = selector_hora_unica("📩 Hora Citación", "h_citacion_single", default_index=16)
 
         st.markdown("---")
 
@@ -266,7 +261,7 @@ else:
 
         st.markdown("---")
 
-        # Fila 5: Teléfono y Opción Alquiler
+        # Fila 5: Teléfono y Alquiler
         col_t1, col_t2 = st.columns(2)
         with col_t1:
             telefono = st.text_input("📱 Teléfono", placeholder="ej. 987654321")
@@ -290,7 +285,6 @@ else:
         costo_show = 0
         costo_deco = 0
 
-        # Montos según Tipo de Servicio
         if tipo_servicio == "Show + Decoración":
             st.info("💡 **Show + Decoración:** Ingresa montos independientes:")
             col_sd1, col_sd2 = st.columns(2)
@@ -300,7 +294,7 @@ else:
                 costo_deco = st.number_input("Decoración (S/)", min_value=0, step=1, value=0, key="c_deco")
 
             costo_total = costo_show + costo_deco + monto_alquiler
-            st.markdown(f"**Total calculado:** S/ {costo_total}")
+            st.markdown(f"**Total:** S/ {costo_total}")
 
         elif tipo_servicio in ["Show", "Decoración"]:
             costo_base = st.number_input(f"Costo Servicio ({tipo_servicio}) (S/)", min_value=0, step=1, value=0, key="c_base")
@@ -308,7 +302,6 @@ else:
         else:
             costo_total = monto_alquiler
 
-        # Cálculo de Pagos
         col_p1, col_p2 = st.columns(2)
         with col_p1:
             monto_adelanto = st.number_input("Adelanto (S/)", min_value=0, step=1, value=0, key="c_adelanto")
