@@ -265,9 +265,9 @@ def renderizar_tarjeta(row, muestra_fecha=False):
             <span>{texto_fecha}🎉 {v_evento} ({v_tipo})</span>
             <span class="{clase_badge}">🏷️ {marca.upper()}</span>
         </div>
-        <div class="card-sub">⏰ <b>Hora Contrato:</b> {h_contrato} | <b>Citación:</b> {h_citacion}</div>
+        <div class="card-sub">⏰ <b>H Contrato:</b> {h_contrato} | <b>H Invitación:</b> {h_citacion}</div>
         <div class="card-sub">👤 <b>Cliente:</b> {v_cliente} | 📱 <b>Tel:</b> {v_telefono}</div>
-        <div class="card-sub">📍 <b>Lugar:</b> {v_lugar}</div>
+        <div class="card-sub">📍 <b>Dirección:</b> {v_lugar}</div>
         <div class="card-sub">💰 <b>Total:</b> S/ {int(v_total_num)} | <b>Pendiente:</b> S/ {v_pendiente_num}</div>
     </div>
     """, unsafe_allow_html=True)
