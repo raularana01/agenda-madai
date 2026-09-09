@@ -213,6 +213,7 @@ def cargar_datos(url):
         df = df.fillna("")
         df.columns = df.columns.str.strip()
         
+        # Mapeo exacto de los nombres de cabecera de Sheets a claves internas
         renombres = {
             "Hora Invitacion": "Hora_Invitacion",
             "Costo Total": "Costo_Total",
@@ -227,9 +228,9 @@ def cargar_datos(url):
         st.error(f"Error al conectar con Google Sheets: {e}")
         return pd.DataFrame()
 
-# Función auxiliar para renderizar tarjetas con diseño según la marca
+# Función auxiliar para renderizar tarjetas de forma segura y corregida
 def renderizar_tarjeta(row, muestra_fecha=False):
-    marca = row.get("Marca", "Madai").strip()
+    marca = str(row.get("Marca", "Madai")).strip()
     clase_tarjeta = "card-risuena" if marca.lower() == "risueña" else "card-madai"
     clase_badge = "badge-risuena" if marca.lower() == "risueña" else "badge-madai"
     texto_fecha = f"📅 {row.get('Fecha', '')} | " if muestra_fecha else ""
@@ -240,10 +241,10 @@ def renderizar_tarjeta(row, muestra_fecha=False):
             <span>{texto_fecha}🎉 {row.get('Evento', 'Evento')} ({row.get('Tipo', '')})</span>
             <span class="{clase_badge}">🏷️ {marca.upper()}</span>
         </div>
-        <div class="card-sub"><b>⏰ Hora Contrato:</b> {row.get('Hora', 'N/A')} | <b>Citación:</b> {row.get('Hora_Invitacion', 'N/A')}</div>
-        <div class="card-sub"><b>👤 Cliente:</b> {row.get('Cliente', 'N/A')} | <b>📱 Tel:</b> {row.get('Telefono', 'N/A')}</div>
-        <div class="card-sub"><b>📍 Lugar:</b> {row.get('Direccion', 'N/A')}</div>
-        <div class="card-sub"><b>💰 Total:</b> S/ {row.get('Costo_Total', '0')} | <b>Estado:</b> {row.get('Estado_Pago', 'N/A')}</div>
+        <div class="card-sub">⏰ <b>Hora Contrato:</b> {row.get('Hora', 'N/A')} | <b>Citación:</b> {row.get('Hora_Invitacion', 'N/A')}</div>
+        <div class="card-sub">👤 <b>Cliente:</b> {row.get('Cliente', 'N/A')} | 📱 <b>Tel:</b> {row.get('Telefono', 'N/A')}</div>
+        <div class="card-sub">📍 <b>Lugar:</b> {row.get('Direccion', 'N/A')}</div>
+        <div class="card-sub">💰 <b>Total:</b> S/ {row.get('Costo_Total', '0')} | <b>Estado:</b> {row.get('Estado_Pago', 'N/A')}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -362,7 +363,6 @@ else:
     # 3. MENÚ: NUEVO (FORMULARIO)
     # =========================================================
     elif st.session_state["menu_activo"] == "Nuevo":
-        # Selector de marca antes de la fecha (Selector con punto / Radio Button)
         marca_seleccionada = st.radio("🏷️ Selecciona la Marca", ["Madai", "Risueña"], horizontal=True)
 
         fecha_input = st.date_input("📅 Fecha", datetime.now())
@@ -451,23 +451,23 @@ else:
 
                 desglose_str = " | ".join(desglose_partes) if desglose_partes else f"S/ {costo_total}"
 
-                # Inclusión de la clave "Marca" en el payload
+                # Estructura limpia y mapeada de los datos enviados a Apps Script
                 payload = {
                     "Marca": marca_seleccionada,
                     "Fecha": fecha_str,
                     "Tipo": tipo_servicio if agregar_alquiler == "No" or tipo_servicio == "Alquiler" else f"{tipo_servicio} + Alquiler",
                     "Evento": nombre_evento if nombre_evento else "Evento",
                     "Hora": hora_contrato_str,
-                    "Direccion": direccion,
                     "Hora_Invitacion": hora_invitacion_str,
                     "Cliente": cliente,
                     "Telefono": telefono,
+                    "Direccion": direccion,
                     "Costo_Total": str(int(costo_total)),
                     "Monto_Adelanto": str(int(monto_adelanto)),
                     "Estado_Pago": estado_pago,
-                    "Descripcion": descripcion if descripcion else "Sin descripción",
                     "Desglose_Costos": desglose_str,
-                    "Concepto_Alquiler": concepto_alquiler if concepto_alquiler else "N/A"
+                    "Concepto_Alquiler": concepto_alquiler if concepto_alquiler else "N/A",
+                    "Descripcion": descripcion if descripcion else "Sin descripción"
                 }
 
                 try:
