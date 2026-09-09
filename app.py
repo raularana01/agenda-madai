@@ -23,7 +23,7 @@ def obtener_base64_de_archivo(ruta_imagen):
 imagen_fondo_b64 = obtener_base64_de_archivo("fondo.jpeg")
 imagen_logo_b64 = obtener_base64_de_archivo("logo.jpeg")
 
-# CSS: Fondo con menor contraste y textos ultra legibles
+# CSS: Fondo y estilos visuales
 css_fondo = ""
 if imagen_fondo_b64:
     css_fondo = f"""
@@ -119,7 +119,7 @@ st.markdown(f"""
         min-width: 0px !important;
     }}
 
-    /* Estilos dinámicos para las tarjetas por marca */
+    /* Estilos para las tarjetas por marca */
     .card-madai {{
         background-color: #E0F7FA !important;
         border-left: 6px solid #00838F;
@@ -211,28 +211,27 @@ def cargar_datos(url):
     try:
         df = pd.read_csv(url, dtype=str)
         df = df.fillna("")
-        # Limpiar espacios alrededor de los nombres de columnas
         df.columns = df.columns.str.strip()
         
-        # Mapear nombres variados a los estándar
+        # Mapeo preciso de nombres de columnas
         renombres = {}
         for col in df.columns:
-            c_low = col.lower()
-            if c_low == "marca": renombres[col] = "Marca"
-            elif c_low == "fecha": renombres[col] = "Fecha"
-            elif c_low in ["tipo", "servicio"]: renombres[col] = "Tipo"
-            elif c_low == "evento": renombres[col] = "Evento"
-            elif c_low in ["hora", "hora contrato"]: renombres[col] = "Hora"
-            elif c_low in ["hora invitacion", "hora_invitacion", "citacion"]: renombres[col] = "Hora_Invitacion"
-            elif c_low == "cliente": renombres[col] = "Cliente"
-            elif c_low in ["telefono", "teléfono"]: renombres[col] = "Telefono"
-            elif c_low in ["direccion", "dirección", "lugar"]: renombres[col] = "Direccion"
-            elif c_low in ["costo total", "costo_total"]: renombres[col] = "Costo_Total"
-            elif c_low in ["monto adelanto", "monto_adelanto", "adelanto"]: renombres[col] = "Monto_Adelanto"
-            elif c_low in ["estado pago", "estado_pago"]: renombres[col] = "Estado_Pago"
-            elif c_low in ["desglose costos", "desglose_costos"]: renombres[col] = "Desglose_Costos"
-            elif c_low in ["concepto alquiler", "concepto_alquiler"]: renombres[col] = "Concepto_Alquiler"
-            elif c_low in ["descripcion", "descripción", "observaciones"]: renombres[col] = "Descripcion"
+            c_clean = col.lower().strip()
+            if "marca" in c_clean: renombres[col] = "Marca"
+            elif "fecha" in c_clean: renombres[col] = "Fecha"
+            elif "tipo" in c_clean or "servicio" in c_clean: renombres[col] = "Tipo"
+            elif "evento" in c_clean: renombres[col] = "Evento"
+            elif c_clean in ["hora", "hora contrato", "hora_contrato"]: renombres[col] = "Hora"
+            elif "invitacion" in c_clean or "citacion" in c_clean or "citación" in c_clean: renombres[col] = "Hora_Invitacion"
+            elif "cliente" in c_clean: renombres[col] = "Cliente"
+            elif "telefono" in c_clean or "teléfono" in c_clean or "tel" in c_clean: renombres[col] = "Telefono"
+            elif "direccion" in c_clean or "dirección" in c_clean or "lugar" in c_clean: renombres[col] = "Direccion"
+            elif "costo" in c_clean or "total" in c_clean: renombres[col] = "Costo_Total"
+            elif "adelanto" in c_clean: renombres[col] = "Monto_Adelanto"
+            elif "estado" in c_clean or "pago" in c_clean: renombres[col] = "Estado_Pago"
+            elif "desglose" in c_clean: renombres[col] = "Desglose_Costos"
+            elif "concepto" in c_clean or "alquiler" in c_clean: renombres[col] = "Concepto_Alquiler"
+            elif "descripcion" in c_clean or "descripción" in c_clean or "observaciones" in c_clean: renombres[col] = "Descripcion"
 
         df = df.rename(columns=renombres)
         return df
@@ -246,16 +245,24 @@ def renderizar_tarjeta(row, muestra_fecha=False):
     clase_badge = "badge-risuena" if marca.lower() == "risueña" else "badge-madai"
     texto_fecha = f"📅 {row.get('Fecha', '')} | " if muestra_fecha else ""
 
+    h_contrato = row.get('Hora', 'N/A')
+    h_citacion = row.get('Hora_Invitacion', 'N/A')
+    v_cliente = row.get('Cliente', 'N/A')
+    v_telefono = row.get('Telefono', 'N/A')
+    v_lugar = row.get('Direccion', 'N/A')
+    v_total = row.get('Costo_Total', '0')
+    v_estado = row.get('Estado_Pago', 'N/A')
+
     st.markdown(f"""
     <div class="{clase_tarjeta}">
         <div class="card-header">
             <span>{texto_fecha}🎉 {row.get('Evento', 'Evento')} ({row.get('Tipo', '')})</span>
             <span class="{clase_badge}">🏷️ {marca.upper()}</span>
         </div>
-        <div class="card-sub">⏰ <b>Hora Contrato:</b> {row.get('Hora', 'N/A')} | <b>Citación:</b> {row.get('Hora_Invitacion', 'N/A')}</div>
-        <div class="card-sub">👤 <b>Cliente:</b> {row.get('Cliente', 'N/A')} | 📱 <b>Tel:</b> {row.get('Telefono', 'N/A')}</div>
-        <div class="card-sub">📍 <b>Lugar:</b> {row.get('Direccion', 'N/A')}</div>
-        <div class="card-sub">💰 <b>Total:</b> S/ {row.get('Costo_Total', '0')} | <b>Estado:</b> {row.get('Estado_Pago', 'N/A')}</div>
+        <div class="card-sub">⏰ <b>Hora Contrato:</b> {h_contrato} | <b>Citación:</b> {h_citacion}</div>
+        <div class="card-sub">👤 <b>Cliente:</b> {v_cliente} | 📱 <b>Tel:</b> {v_telefono}</div>
+        <div class="card-sub">📍 <b>Lugar:</b> {v_lugar}</div>
+        <div class="card-sub">💰 <b>Total:</b> S/ {v_total} | <b>Estado:</b> {v_estado}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -265,7 +272,7 @@ else:
     df = cargar_datos(GOOGLE_SHEET_URL)
 
     # =========================================================
-    # 1. MENÚ: EVENTOS (PANTALLA DE INICIO)
+    # 1. MENÚ: EVENTOS
     # =========================================================
     if st.session_state["menu_activo"] == "Eventos":
         if "mensaje_exito" in st.session_state:
