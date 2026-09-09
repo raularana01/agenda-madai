@@ -23,7 +23,7 @@ def obtener_base64_de_archivo(ruta_imagen):
 imagen_fondo_b64 = obtener_base64_de_archivo("fondo.jpeg")
 imagen_logo_b64 = obtener_base64_de_archivo("logo.jpeg")
 
-# CSS: Fondo y estilos visuales
+# CSS: Fondo y estilos visuales con colores diferenciados por marca
 css_fondo = ""
 if imagen_fondo_b64:
     css_fondo = f"""
@@ -119,38 +119,44 @@ st.markdown(f"""
         min-width: 0px !important;
     }}
 
-    /* Estilos para las tarjetas por marca */
+    /* =========================================================
+       ESTILOS DE TARJETAS POR MARCA
+       ========================================================= */
+    /* Tarjeta MADAI: Tono Turquesa / Cian */
     .card-madai {{
-        background-color: #E0F7FA !important;
-        border-left: 6px solid #00838F;
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 10px;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.15);
-    }}
-    .card-risuena {{
-        background-color: #F3E5F5 !important;
-        border-left: 6px solid #7B1FA2;
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 10px;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+        background: linear-gradient(135deg, #E0F7FA 0%, #B2EBF2 100%) !important;
+        border-left: 8px solid #00838F;
+        padding: 14px;
+        border-radius: 10px;
+        margin-bottom: 12px;
+        box-shadow: 0 4px 12px rgba(0, 131, 143, 0.2);
     }}
     
     .badge-madai {{
         background-color: #00838F;
         color: #FFFFFF !important;
-        padding: 3px 8px;
-        border-radius: 4px;
+        padding: 4px 10px;
+        border-radius: 6px;
         font-size: 12px;
         font-weight: bold;
         text-shadow: none !important;
     }}
+
+    /* Tarjeta RISUEÑA: Tono Lavanda / Púrpura */
+    .card-risuena {{
+        background: linear-gradient(135deg, #F3E5F5 0%, #E1BEE7 100%) !important;
+        border-left: 8px solid #7B1FA2;
+        padding: 14px;
+        border-radius: 10px;
+        margin-bottom: 12px;
+        box-shadow: 0 4px 12px rgba(123, 31, 162, 0.2);
+    }}
+
     .badge-risuena {{
         background-color: #7B1FA2;
         color: #FFFFFF !important;
-        padding: 3px 8px;
-        border-radius: 4px;
+        padding: 4px 10px;
+        border-radius: 6px;
         font-size: 12px;
         font-weight: bold;
         text-shadow: none !important;
@@ -159,7 +165,7 @@ st.markdown(f"""
     .card-header {{
         font-size: 16px;
         font-weight: bold;
-        margin-bottom: 5px;
+        margin-bottom: 6px;
         color: #000000;
         display: flex;
         align-items: center;
@@ -168,7 +174,7 @@ st.markdown(f"""
     .card-sub {{
         font-size: 13px;
         color: #111111;
-        margin-bottom: 2px;
+        margin-bottom: 3px;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -211,7 +217,8 @@ def cargar_datos(url):
     try:
         df = pd.read_csv(url, dtype=str)
         df = df.fillna("")
-        
+        df.columns = [str(c).strip() for c in df.columns]
+
         columnas_reales = [
             "Marca", "Fecha", "Tipo", "Evento", "Hora", 
             "Direccion", "Hora_Invitacion", "Cliente", "Telefono", 
@@ -220,9 +227,11 @@ def cargar_datos(url):
         ]
 
         if len(df.columns) >= len(columnas_reales):
-            df.columns = columnas_reales + list(df.columns[len(columnas_reales):])
-        else:
-            df.columns = columnas_reales[:len(df.columns)]
+            dict_renombres = {}
+            for i, col in enumerate(columnas_reales):
+                if i < len(df.columns):
+                    dict_renombres[df.columns[i]] = col
+            df = df.rename(columns=dict_renombres)
 
         return df
     except Exception as e:
@@ -237,8 +246,14 @@ def obtener_valor(row, col_name):
 
 def renderizar_tarjeta(row, muestra_fecha=False):
     marca = obtener_valor(row, "Marca") or "Madai"
-    clase_tarjeta = "card-risuena" if marca.lower() == "risueña" else "card-madai"
-    clase_badge = "badge-risuena" if marca.lower() == "risueña" else "badge-madai"
+    
+    # Asignar clase CSS según la marca
+    if marca.lower() == "risueña":
+        clase_tarjeta = "card-risuena"
+        clase_badge = "badge-risuena"
+    else:
+        clase_tarjeta = "card-madai"
+        clase_badge = "badge-madai"
 
     v_fecha = obtener_valor(row, "Fecha")
     v_evento = obtener_valor(row, "Evento") or "Evento"
@@ -284,20 +299,29 @@ else:
         if "mensaje_exito" in st.session_state:
             st.success(st.session_state.pop("mensaje_exito"))
 
+        c_top1, c_top2 = st.columns([3, 1])
+        with c_top2:
+            if st.button("🔄 Actualizar", key="btn_refresh", use_container_width=True):
+                st.cache_data.clear()
+                st.rerun()
+
         if not df.empty and "Fecha" in df.columns:
             df_copia = df.copy()
-            
-            # Convertir fechas a objetos datetime.date para comparar limpiamente
-            df_copia["Fecha_Parsed"] = pd.to_datetime(df_copia["Fecha"].astype(str).str.strip(), errors="coerce")
-            df_copia["Fecha_Date"] = df_copia["Fecha_Parsed"].dt.date
+            df_copia["Fecha_Str"] = df_copia["Fecha"].astype(str).str.strip()
 
-            hoy_date = datetime.now().date()
+            try:
+                from zoneinfo import ZoneInfo
+                hoy_date = datetime.now(ZoneInfo("America/Lima")).date()
+            except Exception:
+                hoy_date = (datetime.utcnow() - timedelta(hours=5)).date()
 
             modo_vista = st.radio(
                 "Ver eventos por categoría:",
                 ["Eventos del día (Hoy)", "Próximos 3 días", "Todos los eventos agendados"],
                 horizontal=True
             )
+
+            df_copia["Fecha_Date"] = pd.to_datetime(df_copia["Fecha_Str"], format="%Y-%m-%d", errors="coerce").dt.date
 
             if modo_vista == "Eventos del día (Hoy)":
                 df_hoy = df_copia[df_copia["Fecha_Date"] == hoy_date]
@@ -393,7 +417,7 @@ else:
         st.caption("⏰ **Hora Contrato**")
         c1, c2 = st.columns([3.5, 1.2])
         with c1:
-            h_contrato_val = st.text_input("HC", value="04:00", key="hc_val", label_visibility="collapsed")
+            h_contrato_val = st.text_input("HC", value="04:30", key="hc_val", label_visibility="collapsed")
         with c2:
             ampm_contrato = st.selectbox("AP1", ["PM", "AM"], key="hc_ap", label_visibility="collapsed")
         hora_contrato_str = f"{h_contrato_val.strip()} {ampm_contrato}"
