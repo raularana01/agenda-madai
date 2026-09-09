@@ -28,7 +28,6 @@ css_fondo = ""
 if imagen_fondo_b64:
     css_fondo = f"""
     .stApp {{
-        /* Capa oscura más acentuada para reducir el contraste de la imagen de fondo */
         background-image: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)), url("{imagen_fondo_b64}");
         background-size: cover;
         background-position: center;
@@ -41,7 +40,7 @@ st.markdown(f"""
 <style>
     {css_fondo}
 
-    /* Tarjeta contenedora con alta opacidad para máxima legibilidad */
+    /* Tarjeta contenedora principal */
     [data-testid="stAppViewContainer"] > .main {{
         background-color: rgba(255, 255, 255, 0.95) !important;
         border-radius: 14px;
@@ -50,7 +49,7 @@ st.markdown(f"""
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
     }}
 
-    /* Encabezado: Logo + Título "Agenda Madai" */
+    /* Encabezado */
     .header-container {{
         display: flex;
         align-items: center;
@@ -80,14 +79,14 @@ st.markdown(f"""
         filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.9));
     }}
 
-    /* Sombra contorno para resaltar textos en fondo claro u oscuro */
+    /* Legibilidad de textos */
     label, p, span, div, .stMarkdown, .stRadio label {{
         color: #000000 !important;
         font-weight: 800 !important;
         text-shadow: 0px 0px 3px rgba(255, 255, 255, 0.9), 0px 0px 1px #FFFFFF;
     }}
 
-    /* Cajas de entrada e inputs con fondo blanco sólido */
+    /* Inputs */
     div[data-testid="stTextInput"] input, 
     div[data-testid="stNumberInput"] input, 
     div[data-testid="stSelectbox"] select, 
@@ -111,7 +110,6 @@ st.markdown(f"""
         max-width: 100% !important;
     }}
 
-    /* Espaciado vertical compacto */
     div[data-testid="stVerticalBlock"] > div {{
         margin-bottom: -6px !important;
         padding-bottom: 0px !important;
@@ -121,30 +119,51 @@ st.markdown(f"""
         min-width: 0px !important;
     }}
 
-    /* Tarjetas de eventos con sombra y bordes contrastados */
-    .card-hoy {{
-        background-color: #FFFFFF;
-        border-left: 6px solid #2E7D32;
-        padding: 10px;
+    /* Estilos dinámicos para las tarjetas por marca */
+    .card-madai {{
+        background-color: #E0F7FA !important; /* Celeste bajo */
+        border-left: 6px solid #00838F;
+        padding: 12px;
         border-radius: 8px;
-        margin-bottom: 8px;
-        color: #1B5E20;
+        margin-bottom: 10px;
         box-shadow: 0 3px 10px rgba(0,0,0,0.15);
     }}
-    .card-proximo {{
-        background-color: #FFFFFF;
-        border-left: 6px solid #1565C0;
-        padding: 10px;
+    .card-risuena {{
+        background-color: #F3E5F5 !important; /* Violeta bajo */
+        border-left: 6px solid #7B1FA2;
+        padding: 12px;
         border-radius: 8px;
-        margin-bottom: 8px;
-        color: #0D47A1;
+        margin-bottom: 10px;
         box-shadow: 0 3px 10px rgba(0,0,0,0.15);
     }}
-    .card-header {{
-        font-size: 15px;
+    
+    .badge-madai {{
+        background-color: #00838F;
+        color: #FFFFFF !important;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 12px;
         font-weight: bold;
-        margin-bottom: 3px;
+        text-shadow: none !important;
+    }}
+    .badge-risuena {{
+        background-color: #7B1FA2;
+        color: #FFFFFF !important;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+        text-shadow: none !important;
+    }}
+
+    .card-header {{
+        font-size: 16px;
+        font-weight: bold;
+        margin-bottom: 5px;
         color: #000000;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
     }}
     .card-sub {{
         font-size: 13px;
@@ -154,7 +173,7 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# Encabezado: Logo + Título
+# Encabezado
 html_logo = f'<img src="{imagen_logo_b64}" class="header-logo">' if imagen_logo_b64 else ''
 st.markdown(f"""
 <div class="header-container">
@@ -163,11 +182,9 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Control del menú mediante session_state
 if "menu_activo" not in st.session_state:
     st.session_state["menu_activo"] = "Eventos"
 
-# Menú superior tipo pestañas creadas con botones
 col_m1, col_m2, col_m3 = st.columns(3)
 with col_m1:
     if st.button("📋 Eventos", use_container_width=True, type="primary" if st.session_state["menu_activo"] == "Eventos" else "secondary"):
@@ -184,7 +201,6 @@ with col_m3:
 
 st.write("---")
 
-# Cargar variables de secretos
 GOOGLE_SHEET_URL = st.secrets.get("GOOGLE_SHEET_URL", os.environ.get("GOOGLE_SHEET_URL", ""))
 GOOGLE_SCRIPT_URL = st.secrets.get("GOOGLE_SCRIPT_URL", os.environ.get("GOOGLE_SCRIPT_URL", ""))
 
@@ -211,6 +227,26 @@ def cargar_datos(url):
         st.error(f"Error al conectar con Google Sheets: {e}")
         return pd.DataFrame()
 
+# Función auxiliar para renderizar tarjetas con diseño según la marca
+def renderizar_tarjeta(row, muestra_fecha=False):
+    marca = row.get("Marca", "Madai").strip()
+    clase_tarjeta = "card-risuena" if marca.lower() == "risueña" else "card-madai"
+    clase_badge = "badge-risuena" if marca.lower() == "risueña" else "badge-madai"
+    texto_fecha = f"📅 {row.get('Fecha', '')} | " if muestra_fecha else ""
+
+    st.markdown(f"""
+    <div class="{clase_tarjeta}">
+        <div class="card-header">
+            <span>{texto_fecha}🎉 {row.get('Evento', 'Evento')} ({row.get('Tipo', '')})</span>
+            <span class="{clase_badge}">🏷️ {marca.upper()}</span>
+        </div>
+        <div class="card-sub"><b>⏰ Hora Contrato:</b> {row.get('Hora', 'N/A')} | <b>Citación:</b> {row.get('Hora_Invitacion', 'N/A')}</div>
+        <div class="card-sub"><b>👤 Cliente:</b> {row.get('Cliente', 'N/A')} | <b>📱 Tel:</b> {row.get('Telefono', 'N/A')}</div>
+        <div class="card-sub"><b>📍 Lugar:</b> {row.get('Direccion', 'N/A')}</div>
+        <div class="card-sub"><b>💰 Total:</b> S/ {row.get('Costo_Total', '0')} | <b>Estado:</b> {row.get('Estado_Pago', 'N/A')}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
 if not GOOGLE_SHEET_URL:
     st.warning("⚠️ Configura GOOGLE_SHEET_URL en los secretos de Streamlit.")
 else:
@@ -225,21 +261,15 @@ else:
 
         if not df.empty and "Fecha" in df.columns:
             df_copia = df.copy()
-
-            # 1. Limpiar espacios en blanco al inicio o final de las celdas de fecha
             df_copia["Fecha"] = df_copia["Fecha"].astype(str).str.strip()
-
-            # 2. Conversión flexible de fechas (soporta YYYY-MM-DD, DD/MM/YYYY, etc.)
             df_copia["Fecha_Parsed"] = pd.to_datetime(df_copia["Fecha"], errors="coerce", dayfirst=True)
             
             mask_nat = df_copia["Fecha_Parsed"].isna()
             if mask_nat.any():
                 df_copia.loc[mask_nat, "Fecha_Parsed"] = pd.to_datetime(df_copia.loc[mask_nat, "Fecha"], errors="coerce")
 
-            # 3. Formato estandarizado YYYY-MM-DD para comparar
             df_copia["Fecha_Clean"] = df_copia["Fecha_Parsed"].dt.strftime("%Y-%m-%d")
 
-            # Fecha actual
             hoy_dt = datetime.now()
             hoy_str = hoy_dt.strftime("%Y-%m-%d")
 
@@ -250,24 +280,13 @@ else:
             )
 
             if modo_vista == "Eventos del día (Hoy)":
-                # Filtro estricto por la fecha de hoy
                 df_hoy = df_copia[df_copia["Fecha_Clean"] == hoy_str]
-
-                # Si no lo encuentra por fecha limpia, busca coincidencia parcial de texto en la celda original
                 if df_hoy.empty:
                     df_hoy = df_copia[df_copia["Fecha"].str.contains(hoy_str, na=False)]
 
                 if not df_hoy.empty:
                     for _, row in df_hoy.iterrows():
-                        st.markdown(f"""
-                        <div class="card-hoy">
-                            <div class="card-header">🎉 {row.get('Evento', 'Evento')} ({row.get('Tipo', '')})</div>
-                            <div class="card-sub"><b>⏰ Hora Contrato:</b> {row.get('Hora', 'N/A')} | <b>Citación:</b> {row.get('Hora_Invitacion', 'N/A')}</div>
-                            <div class="card-sub"><b>👤 Cliente:</b> {row.get('Cliente', 'N/A')} | <b>📱 Tel:</b> {row.get('Telefono', 'N/A')}</div>
-                            <div class="card-sub"><b>📍 Lugar:</b> {row.get('Direccion', 'N/A')}</div>
-                            <div class="card-sub"><b>💰 Total:</b> S/ {row.get('Costo_Total', '0')} | <b>Estado:</b> {row.get('Estado_Pago', 'N/A')}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        renderizar_tarjeta(row, muestra_fecha=False)
                 else:
                     st.info(f"No hay eventos registrados para hoy ({hoy_str}).")
 
@@ -277,15 +296,7 @@ else:
 
                 if not df_3dias.empty:
                     for _, row in df_3dias.iterrows():
-                        st.markdown(f"""
-                        <div class="card-proximo">
-                            <div class="card-header">📅 {row.get('Fecha', '')} | {row.get('Evento', 'Evento')} ({row.get('Tipo', '')})</div>
-                            <div class="card-sub"><b>⏰ Hora:</b> {row.get('Hora', 'N/A')} | <b>Citación:</b> {row.get('Hora_Invitacion', 'N/A')}</div>
-                            <div class="card-sub"><b>👤 Cliente:</b> {row.get('Cliente', 'N/A')} | <b>📱 Tel:</b> {row.get('Telefono', 'N/A')}</div>
-                            <div class="card-sub"><b>📍 Dirección:</b> {row.get('Direccion', 'N/A')}</div>
-                            <div class="card-sub"><b>💰 Total:</b> S/ {row.get('Costo_Total', '0')} | <b>Estado:</b> {row.get('Estado_Pago', 'N/A')}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        renderizar_tarjeta(row, muestra_fecha=True)
                 else:
                     st.info("No hay eventos registrados dentro de los próximos 3 días.")
 
@@ -294,15 +305,7 @@ else:
 
                 if not df_futuros.empty:
                     for _, row in df_futuros.iterrows():
-                        st.markdown(f"""
-                        <div class="card-proximo">
-                            <div class="card-header">📅 {row.get('Fecha', '')} | {row.get('Evento', 'Evento')} ({row.get('Tipo', '')})</div>
-                            <div class="card-sub"><b>⏰ Hora:</b> {row.get('Hora', 'N/A')} | <b>Citación:</b> {row.get('Hora_Invitacion', 'N/A')}</div>
-                            <div class="card-sub"><b>👤 Cliente:</b> {row.get('Cliente', 'N/A')} | <b>📱 Tel:</b> {row.get('Telefono', 'N/A')}</div>
-                            <div class="card-sub"><b>📍 Dirección:</b> {row.get('Direccion', 'N/A')}</div>
-                            <div class="card-sub"><b>💰 Total:</b> S/ {row.get('Costo_Total', '0')} | <b>Estado:</b> {row.get('Estado_Pago', 'N/A')}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        renderizar_tarjeta(row, muestra_fecha=True)
                 else:
                     st.warning("No se encontraron registros en Google Sheets.")
         else:
@@ -359,6 +362,9 @@ else:
     # 3. MENÚ: NUEVO (FORMULARIO)
     # =========================================================
     elif st.session_state["menu_activo"] == "Nuevo":
+        # Selector de marca antes de la fecha (Selector con punto / Radio Button)
+        marca_seleccionada = st.radio("🏷️ Selecciona la Marca", ["Madai", "Risueña"], horizontal=True)
+
         fecha_input = st.date_input("📅 Fecha", datetime.now())
         fecha_str = fecha_input.strftime("%Y-%m-%d")
 
@@ -445,7 +451,9 @@ else:
 
                 desglose_str = " | ".join(desglose_partes) if desglose_partes else f"S/ {costo_total}"
 
+                # Inclusión de la clave "Marca" en el payload
                 payload = {
+                    "Marca": marca_seleccionada,
                     "Fecha": fecha_str,
                     "Tipo": tipo_servicio if agregar_alquiler == "No" or tipo_servicio == "Alquiler" else f"{tipo_servicio} + Alquiler",
                     "Evento": nombre_evento if nombre_evento else "Evento",
