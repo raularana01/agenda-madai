@@ -211,52 +211,58 @@ def cargar_datos(url):
     try:
         df = pd.read_csv(url, dtype=str)
         df = df.fillna("")
-        df.columns = df.columns.str.strip()
         
-        # Mapeo preciso de nombres de columnas
-        renombres = {}
-        for col in df.columns:
-            c_clean = col.lower().strip()
-            if "marca" in c_clean: renombres[col] = "Marca"
-            elif "fecha" in c_clean: renombres[col] = "Fecha"
-            elif "tipo" in c_clean or "servicio" in c_clean: renombres[col] = "Tipo"
-            elif "evento" in c_clean: renombres[col] = "Evento"
-            elif c_clean in ["hora", "hora contrato", "hora_contrato"]: renombres[col] = "Hora"
-            elif "invitacion" in c_clean or "citacion" in c_clean or "citación" in c_clean: renombres[col] = "Hora_Invitacion"
-            elif "cliente" in c_clean: renombres[col] = "Cliente"
-            elif "telefono" in c_clean or "teléfono" in c_clean or "tel" in c_clean: renombres[col] = "Telefono"
-            elif "direccion" in c_clean or "dirección" in c_clean or "lugar" in c_clean: renombres[col] = "Direccion"
-            elif "costo" in c_clean or "total" in c_clean: renombres[col] = "Costo_Total"
-            elif "adelanto" in c_clean: renombres[col] = "Monto_Adelanto"
-            elif "estado" in c_clean or "pago" in c_clean: renombres[col] = "Estado_Pago"
-            elif "desglose" in c_clean: renombres[col] = "Desglose_Costos"
-            elif "concepto" in c_clean or "alquiler" in c_clean: renombres[col] = "Concepto_Alquiler"
-            elif "descripcion" in c_clean or "descripción" in c_clean or "observaciones" in c_clean: renombres[col] = "Descripcion"
+        # Lista estricta de columnas en el orden exacto de Google Sheets
+        columnas_ordenadas = [
+            "Marca", "Fecha", "Tipo", "Evento", "Hora", 
+            "Hora_Invitacion", "Cliente", "Telefono", "Direccion", 
+            "Costo_Total", "Monto_Adelanto", "Estado_Pago", 
+            "Desglose_Costos", "Concepto_Alquiler", "Descripcion"
+        ]
 
-        df = df.rename(columns=renombres)
+        # Si el número de columnas coincide o es mayor, reasignamos directamente los nombres por posición A, B, C, D...
+        if len(df.columns) >= len(columnas_ordenadas):
+            nuevas_cols = columnas_ordenadas + list(df.columns[len(columnas_ordenadas):])
+            df.columns = nuevas_cols
+        else:
+            # Si faltan columnas al final, asignamos las que estén presentes por su índice
+            df.columns = columnas_ordenadas[:len(df.columns)]
+
         return df
     except Exception as e:
         st.error(f"Error al conectar con Google Sheets: {e}")
         return pd.DataFrame()
 
+def obtener_campo(row, clave, valor_defecto=""):
+    """Extrae valores de forma segura evitando devolver objetos Serie de pandas."""
+    val = row.get(clave, valor_defecto)
+    if isinstance(val, pd.Series):
+        val = val.iloc[0] if not val.empty else valor_defecto
+    val_str = str(val).strip()
+    return val_str if val_str else valor_defecto
+
 def renderizar_tarjeta(row, muestra_fecha=False):
-    marca = str(row.get("Marca", "Madai")).strip()
+    marca = obtener_campo(row, "Marca", "Madai")
     clase_tarjeta = "card-risuena" if marca.lower() == "risueña" else "card-madai"
     clase_badge = "badge-risuena" if marca.lower() == "risueña" else "badge-madai"
-    texto_fecha = f"📅 {row.get('Fecha', '')} | " if muestra_fecha else ""
 
-    h_contrato = row.get('Hora', 'N/A')
-    h_citacion = row.get('Hora_Invitacion', 'N/A')
-    v_cliente = row.get('Cliente', 'N/A')
-    v_telefono = row.get('Telefono', 'N/A')
-    v_lugar = row.get('Direccion', 'N/A')
-    v_total = row.get('Costo_Total', '0')
-    v_estado = row.get('Estado_Pago', 'N/A')
+    v_fecha = obtener_campo(row, "Fecha", "")
+    v_evento = obtener_campo(row, "Evento", "Evento")
+    v_tipo = obtener_campo(row, "Tipo", "")
+    h_contrato = obtener_campo(row, "Hora", "N/A")
+    h_citacion = obtener_campo(row, "Hora_Invitacion", "N/A")
+    v_cliente = obtener_campo(row, "Cliente", "N/A")
+    v_telefono = obtener_campo(row, "Telefono", "N/A")
+    v_lugar = obtener_campo(row, "Direccion", "N/A")
+    v_total = obtener_campo(row, "Costo_Total", "0")
+    v_estado = obtener_campo(row, "Estado_Pago", "N/A")
+
+    texto_fecha = f"📅 {v_fecha} | " if muestra_fecha else ""
 
     st.markdown(f"""
     <div class="{clase_tarjeta}">
         <div class="card-header">
-            <span>{texto_fecha}🎉 {row.get('Evento', 'Evento')} ({row.get('Tipo', '')})</span>
+            <span>{texto_fecha}🎉 {v_evento} ({v_tipo})</span>
             <span class="{clase_badge}">🏷️ {marca.upper()}</span>
         </div>
         <div class="card-sub">⏰ <b>Hora Contrato:</b> {h_contrato} | <b>Citación:</b> {h_citacion}</div>
