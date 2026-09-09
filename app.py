@@ -119,10 +119,7 @@ st.markdown(f"""
         min-width: 0px !important;
     }}
 
-    /* =========================================================
-       ESTILOS DE TARJETAS POR MARCA
-       ========================================================= */
-    /* Tarjeta MADAI: Tono Turquesa / Cian */
+    /* ESTILOS DE TARJETAS POR MARCA */
     .card-madai {{
         background: linear-gradient(135deg, #E0F7FA 0%, #B2EBF2 100%) !important;
         border-left: 8px solid #00838F;
@@ -142,7 +139,6 @@ st.markdown(f"""
         text-shadow: none !important;
     }}
 
-    /* Tarjeta RISUEÑA: Tono Lavanda / Púrpura */
     .card-risuena {{
         background: linear-gradient(135deg, #F3E5F5 0%, #E1BEE7 100%) !important;
         border-left: 8px solid #7B1FA2;
@@ -175,6 +171,16 @@ st.markdown(f"""
         font-size: 13px;
         color: #111111;
         margin-bottom: 3px;
+    }}
+
+    /* Estilo de Ficha Completa del Evento */
+    .ficha-completa {{
+        background-color: #FFFFFF !important;
+        border: 2px dashed #00838F;
+        border-radius: 10px;
+        padding: 12px;
+        margin-top: 8px;
+        margin-bottom: 12px;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -244,7 +250,7 @@ def obtener_valor(row, col_name):
         val = val.iloc[0] if not val.empty else ""
     return str(val).strip()
 
-def renderizar_tarjeta(row, muestra_fecha=False):
+def renderizar_tarjeta(row, index_evento, muestra_fecha=False):
     marca = obtener_valor(row, "Marca") or "Madai"
     
     # Asignar clase CSS según la marca
@@ -274,6 +280,7 @@ def renderizar_tarjeta(row, muestra_fecha=False):
 
     texto_fecha = f"📅 {v_fecha} | " if muestra_fecha else ""
 
+    # Tarjeta Principal
     st.markdown(f"""
     <div class="{clase_tarjeta}">
         <div class="card-header">
@@ -286,6 +293,95 @@ def renderizar_tarjeta(row, muestra_fecha=False):
         <div class="card-sub">💰 <b>Total:</b> S/ {int(v_total_num)} | <b>Pendiente:</b> S/ {v_pendiente_num}</div>
     </div>
     """, unsafe_allow_html=True)
+
+    # Key único por evento para session_state
+    event_key = f"evt_{index_evento}_{v_fecha}_{v_cliente}"
+
+    # Estado para la visibilidad de la ficha completa
+    if f"ver_ficha_{event_key}" not in st.session_state:
+        st.session_state[f"ver_ficha_{event_key}"] = False
+
+    c_btn1, c_btn2 = st.columns(2)
+    with c_btn1:
+        if st.button("📋 Ver Ficha Completa", key=f"btn_ver_ficha_{event_key}", use_container_width=True):
+            st.session_state[f"ver_ficha_{event_key}"] = not st.session_state[f"ver_ficha_{event_key}"]
+            st.rerun()
+
+    # DESPLEGABLE DE GESTIÓN (Asignar personal)
+    with st.expander("⚙️ Asignar Personal y Editar Detalles"):
+        if f"num_dalinas_{event_key}" not in st.session_state:
+            st.session_state[f"num_dalinas_{event_key}"] = 1
+
+        num_dalinas = st.session_state[f"num_dalinas_{event_key}"]
+        st.markdown(f"**💃 Dalinas asignadas ({num_dalinas}/7):**")
+
+        for i in range(num_dalinas):
+            st.text_input(f"Nombre de Dalina {i+1}", key=f"dalina_{i}_{event_key}", placeholder=f"ej. Dalina {i+1}")
+
+        c_add, c_rem = st.columns(2)
+        with c_add:
+            if num_dalinas < 7:
+                if st.button("➕ Agregar Dalina", key=f"btn_add_dalina_{event_key}", use_container_width=True):
+                    st.session_state[f"num_dalinas_{event_key}"] += 1
+                    st.rerun()
+        with c_rem:
+            if num_dalinas > 1:
+                if st.button("➖ Quitar Dalina", key=f"btn_rem_dalina_{event_key}", use_container_width=True):
+                    st.session_state[f"num_dalinas_{event_key}"] -= 1
+                    st.rerun()
+
+        st.write("---")
+
+        opciones_animador = ["Ninguno(a)", "Madai", "Martha", "Eusy", "Antonio", "Jair", "Britny", "Gina"]
+        st.selectbox("🎤 Animador(a):", opciones_animador, key=f"animador_{event_key}")
+
+        col_dj, col_staff = st.columns(2)
+        with col_dj:
+            st.text_input("🎧 DJ:", key=f"dj_{event_key}", placeholder="Nombre del DJ")
+        with col_staff:
+            st.text_input("🛠️ Staff / Apoyo:", key=f"staff_{event_key}", placeholder="Nombre del staff")
+
+        st.text_input("⏳ Duración:", key=f"duracion_{event_key}", placeholder="ej. 2 Horas / 30 min")
+        st.text_area("📝 Detalles adicionales:", key=f"detalles_{event_key}", placeholder="Notas extra...")
+
+        if st.button("💾 Guardar Personal", key=f"btn_save_details_{event_key}", use_container_width=True, type="primary"):
+            st.success("✅ Datos del evento actualizados.")
+
+    # MOSTRAR LA FICHA COMPLETA SI EL BOTÓN FUE PRESIONADO
+    if st.session_state[f"ver_ficha_{event_key}"]:
+        # Recopilar Dalinas
+        dalinas_list = []
+        n_dal = st.session_state.get(f"num_dalinas_{event_key}", 1)
+        for i in range(n_dal):
+            val_dal = st.session_state.get(f"dalina_{i}_{event_key}", "").strip()
+            if val_dal:
+                dalinas_list.append(val_dal)
+        
+        str_dalinas = ", ".join(dalinas_list) if dalinas_list else "Ninguna asignada"
+        anim_val = st.session_state.get(f"animador_{event_key}", "Ninguno(a)")
+        dj_val = st.session_state.get(f"dj_{event_key}", "").strip() or "No asignado"
+        staff_val = st.session_state.get(f"staff_{event_key}", "").strip() or "No asignado"
+        dur_val = st.session_state.get(f"duracion_{event_key}", "").strip() or "No especificada"
+        det_val = st.session_state.get(f"detalles_{event_key}", "").strip() or "Sin detalles"
+
+        st.markdown(f"""
+        <div class="ficha-completa">
+            <h4 style="margin-top:0; color:#00838F; text-align:center;">📜 FICHA COMPLETA DEL EVENTO</h4>
+            <hr style="margin: 6px 0;">
+            <p><b>🏷️ Marca:</b> {marca.upper()} | <b>🎉 Evento:</b> {v_evento} ({v_tipo})</p>
+            <p><b>📅 Fecha:</b> {v_fecha} | <b>⏰ Contrato:</b> {h_contrato} | <b>Citación:</b> {h_citacion}</p>
+            <p><b>👤 Cliente:</b> {v_cliente} | <b>📱 Teléfono:</b> {v_telefono}</p>
+            <p><b>📍 Ubicación:</b> {v_lugar}</p>
+            <p><b>💰 Total:</b> S/ {int(v_total_num)} | <b>Monto Pendiente:</b> S/ {v_pendiente_num}</p>
+            <hr style="margin: 6px 0;">
+            <h5 style="margin: 4px 0; color:#7B1FA2;">👥 PERSONAL ASIGNADO:</h5>
+            <p><b>💃 Dalina(s):</b> {str_dalinas}</p>
+            <p><b>🎤 Animador(a):</b> {anim_val}</p>
+            <p><b>🎧 DJ:</b> {dj_val} | <b>🛠️ Staff:</b> {staff_val}</p>
+            <p><b>⏳ Duración del Show:</b> {dur_val}</p>
+            <p><b>📝 Notas/Detalles:</b> {det_val}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 if not GOOGLE_SHEET_URL:
     st.warning("⚠️ Configura GOOGLE_SHEET_URL en los secretos de Streamlit.")
@@ -327,8 +423,8 @@ else:
                 df_hoy = df_copia[df_copia["Fecha_Date"] == hoy_date]
 
                 if not df_hoy.empty:
-                    for _, row in df_hoy.iterrows():
-                        renderizar_tarjeta(row, muestra_fecha=False)
+                    for idx, row in df_hoy.iterrows():
+                        renderizar_tarjeta(row, index_evento=idx, muestra_fecha=False)
                 else:
                     st.info(f"No hay eventos registrados para hoy ({hoy_date.strftime('%Y-%m-%d')}).")
 
@@ -338,8 +434,8 @@ else:
                 df_3dias = df_copia[mask_3dias].sort_values("Fecha_Date")
 
                 if not df_3dias.empty:
-                    for _, row in df_3dias.iterrows():
-                        renderizar_tarjeta(row, muestra_fecha=True)
+                    for idx, row in df_3dias.iterrows():
+                        renderizar_tarjeta(row, index_evento=idx, muestra_fecha=True)
                 else:
                     st.info("No hay eventos registrados dentro de los próximos 3 días.")
 
@@ -347,8 +443,8 @@ else:
                 df_todos = df_copia.sort_values("Fecha_Date", ascending=True, na_position="last")
 
                 if not df_todos.empty:
-                    for _, row in df_todos.iterrows():
-                        renderizar_tarjeta(row, muestra_fecha=True)
+                    for idx, row in df_todos.iterrows():
+                        renderizar_tarjeta(row, index_evento=idx, muestra_fecha=True)
                 else:
                     st.warning("No se encontraron registros en Google Sheets.")
         else:
