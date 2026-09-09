@@ -121,7 +121,7 @@ st.markdown(f"""
 
     /* Estilos dinámicos para las tarjetas por marca */
     .card-madai {{
-        background-color: #E0F7FA !important; /* Celeste bajo */
+        background-color: #E0F7FA !important;
         border-left: 6px solid #00838F;
         padding: 12px;
         border-radius: 8px;
@@ -129,7 +129,7 @@ st.markdown(f"""
         box-shadow: 0 3px 10px rgba(0,0,0,0.15);
     }}
     .card-risuena {{
-        background-color: #F3E5F5 !important; /* Violeta bajo */
+        background-color: #F3E5F5 !important;
         border-left: 6px solid #7B1FA2;
         padding: 12px;
         border-radius: 8px;
@@ -211,24 +211,35 @@ def cargar_datos(url):
     try:
         df = pd.read_csv(url, dtype=str)
         df = df.fillna("")
+        # Limpiar espacios alrededor de los nombres de columnas
         df.columns = df.columns.str.strip()
         
-        # Mapeo exacto de los nombres de cabecera de Sheets a claves internas
-        renombres = {
-            "Hora Invitacion": "Hora_Invitacion",
-            "Costo Total": "Costo_Total",
-            "Monto Adelanto": "Monto_Adelanto",
-            "Estado Pago": "Estado_Pago",
-            "Desglose Costos": "Desglose_Costos",
-            "Concepto Alquiler": "Concepto_Alquiler"
-        }
+        # Mapear nombres variados a los estándar
+        renombres = {}
+        for col in df.columns:
+            c_low = col.lower()
+            if c_low == "marca": renombres[col] = "Marca"
+            elif c_low == "fecha": renombres[col] = "Fecha"
+            elif c_low in ["tipo", "servicio"]: renombres[col] = "Tipo"
+            elif c_low == "evento": renombres[col] = "Evento"
+            elif c_low in ["hora", "hora contrato"]: renombres[col] = "Hora"
+            elif c_low in ["hora invitacion", "hora_invitacion", "citacion"]: renombres[col] = "Hora_Invitacion"
+            elif c_low == "cliente": renombres[col] = "Cliente"
+            elif c_low in ["telefono", "teléfono"]: renombres[col] = "Telefono"
+            elif c_low in ["direccion", "dirección", "lugar"]: renombres[col] = "Direccion"
+            elif c_low in ["costo total", "costo_total"]: renombres[col] = "Costo_Total"
+            elif c_low in ["monto adelanto", "monto_adelanto", "adelanto"]: renombres[col] = "Monto_Adelanto"
+            elif c_low in ["estado pago", "estado_pago"]: renombres[col] = "Estado_Pago"
+            elif c_low in ["desglose costos", "desglose_costos"]: renombres[col] = "Desglose_Costos"
+            elif c_low in ["concepto alquiler", "concepto_alquiler"]: renombres[col] = "Concepto_Alquiler"
+            elif c_low in ["descripcion", "descripción", "observaciones"]: renombres[col] = "Descripcion"
+
         df = df.rename(columns=renombres)
         return df
     except Exception as e:
         st.error(f"Error al conectar con Google Sheets: {e}")
         return pd.DataFrame()
 
-# Función auxiliar para renderizar tarjetas de forma segura y corregida
 def renderizar_tarjeta(row, muestra_fecha=False):
     marca = str(row.get("Marca", "Madai")).strip()
     clase_tarjeta = "card-risuena" if marca.lower() == "risueña" else "card-madai"
@@ -451,7 +462,6 @@ else:
 
                 desglose_str = " | ".join(desglose_partes) if desglose_partes else f"S/ {costo_total}"
 
-                # Estructura limpia y mapeada de los datos enviados a Apps Script
                 payload = {
                     "Marca": marca_seleccionada,
                     "Fecha": fecha_str,
