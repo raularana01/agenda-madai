@@ -80,7 +80,7 @@ st.markdown(f"""
     }}
 
     /* Legibilidad de textos */
-    label, p, span, div, .stMarkdown, .stRadio label {{
+    label, p, span, div, .stMarkdown, .stRadio label, .stCheckbox label {{
         color: #000000 !important;
         font-weight: 800 !important;
         text-shadow: 0px 0px 3px rgba(255, 255, 255, 0.9), 0px 0px 1px #FFFFFF;
@@ -212,50 +212,52 @@ def cargar_datos(url):
         df = pd.read_csv(url, dtype=str)
         df = df.fillna("")
         
-        # Lista estricta de columnas en el orden exacto de Google Sheets
-        columnas_ordenadas = [
+        # Estructura ajustada sin la columna Estado_Pago
+        columnas_reales = [
             "Marca", "Fecha", "Tipo", "Evento", "Hora", 
-            "Hora_Invitacion", "Cliente", "Telefono", "Direccion", 
-            "Costo_Total", "Monto_Adelanto", "Estado_Pago", 
-            "Desglose_Costos", "Concepto_Alquiler", "Descripcion"
+            "Direccion", "Hora_Invitacion", "Cliente", "Telefono", 
+            "Costo_Total", "Monto_Adelanto", 
+            "Descripcion", "Desglose_Costos", "Concepto_Alquiler"
         ]
 
-        # Si el número de columnas coincide o es mayor, reasignamos directamente los nombres por posición A, B, C, D...
-        if len(df.columns) >= len(columnas_ordenadas):
-            nuevas_cols = columnas_ordenadas + list(df.columns[len(columnas_ordenadas):])
-            df.columns = nuevas_cols
+        if len(df.columns) >= len(columnas_reales):
+            df.columns = columnas_reales + list(df.columns[len(columnas_reales):])
         else:
-            # Si faltan columnas al final, asignamos las que estén presentes por su índice
-            df.columns = columnas_ordenadas[:len(df.columns)]
+            df.columns = columnas_reales[:len(df.columns)]
 
         return df
     except Exception as e:
         st.error(f"Error al conectar con Google Sheets: {e}")
         return pd.DataFrame()
 
-def obtener_campo(row, clave, valor_defecto=""):
-    """Extrae valores de forma segura evitando devolver objetos Serie de pandas."""
-    val = row.get(clave, valor_defecto)
+def obtener_valor(row, col_name):
+    val = row.get(col_name, "")
     if isinstance(val, pd.Series):
-        val = val.iloc[0] if not val.empty else valor_defecto
-    val_str = str(val).strip()
-    return val_str if val_str else valor_defecto
+        val = val.iloc[0] if not val.empty else ""
+    return str(val).strip()
 
 def renderizar_tarjeta(row, muestra_fecha=False):
-    marca = obtener_campo(row, "Marca", "Madai")
+    marca = obtener_valor(row, "Marca") or "Madai"
     clase_tarjeta = "card-risuena" if marca.lower() == "risueña" else "card-madai"
     clase_badge = "badge-risuena" if marca.lower() == "risueña" else "badge-madai"
 
-    v_fecha = obtener_campo(row, "Fecha", "")
-    v_evento = obtener_campo(row, "Evento", "Evento")
-    v_tipo = obtener_campo(row, "Tipo", "")
-    h_contrato = obtener_campo(row, "Hora", "N/A")
-    h_citacion = obtener_campo(row, "Hora_Invitacion", "N/A")
-    v_cliente = obtener_campo(row, "Cliente", "N/A")
-    v_telefono = obtener_campo(row, "Telefono", "N/A")
-    v_lugar = obtener_campo(row, "Direccion", "N/A")
-    v_total = obtener_campo(row, "Costo_Total", "0")
-    v_estado = obtener_campo(row, "Estado_Pago", "N/A")
+    v_fecha = obtener_valor(row, "Fecha")
+    v_evento = obtener_valor(row, "Evento") or "Evento"
+    v_tipo = obtener_valor(row, "Tipo")
+    h_contrato = obtener_valor(row, "Hora") or "N/A"
+    h_citacion = obtener_valor(row, "Hora_Invitacion") or "N/A"
+    v_cliente = obtener_valor(row, "Cliente") or "N/A"
+    v_telefono = obtener_valor(row, "Telefono") or "N/A"
+    v_lugar = obtener_valor(row, "Direccion") or "N/A"
+    
+    # Cálculo del pendiente
+    try:
+        v_total_num = float(obtener_valor(row, "Costo_Total") or 0)
+        v_adelanto_num = float(obtener_valor(row, "Monto_Adelanto") or 0)
+        v_pendiente_num = max(0, int(v_total_num - v_adelanto_num))
+    except ValueError:
+        v_total_num = 0
+        v_pendiente_num = 0
 
     texto_fecha = f"📅 {v_fecha} | " if muestra_fecha else ""
 
@@ -268,7 +270,7 @@ def renderizar_tarjeta(row, muestra_fecha=False):
         <div class="card-sub">⏰ <b>Hora Contrato:</b> {h_contrato} | <b>Citación:</b> {h_citacion}</div>
         <div class="card-sub">👤 <b>Cliente:</b> {v_cliente} | 📱 <b>Tel:</b> {v_telefono}</div>
         <div class="card-sub">📍 <b>Lugar:</b> {v_lugar}</div>
-        <div class="card-sub">💰 <b>Total:</b> S/ {v_total} | <b>Estado:</b> {v_estado}</div>
+        <div class="card-sub">💰 <b>Total:</b> S/ {int(v_total_num)} | <b>Pendiente:</b> S/ {v_pendiente_num}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -286,14 +288,9 @@ else:
 
         if not df.empty and "Fecha" in df.columns:
             df_copia = df.copy()
-            df_copia["Fecha"] = df_copia["Fecha"].astype(str).str.strip()
-            df_copia["Fecha_Parsed"] = pd.to_datetime(df_copia["Fecha"], errors="coerce", dayfirst=True)
             
-            mask_nat = df_copia["Fecha_Parsed"].isna()
-            if mask_nat.any():
-                df_copia.loc[mask_nat, "Fecha_Parsed"] = pd.to_datetime(df_copia.loc[mask_nat, "Fecha"], errors="coerce")
-
-            df_copia["Fecha_Clean"] = df_copia["Fecha_Parsed"].dt.strftime("%Y-%m-%d")
+            df_copia["Fecha_Str"] = df_copia["Fecha"].astype(str).str.strip()
+            df_copia["Fecha_DT"] = pd.to_datetime(df_copia["Fecha_Str"], errors="coerce")
 
             hoy_dt = datetime.now()
             hoy_str = hoy_dt.strftime("%Y-%m-%d")
@@ -305,32 +302,34 @@ else:
             )
 
             if modo_vista == "Eventos del día (Hoy)":
-                df_hoy = df_copia[df_copia["Fecha_Clean"] == hoy_str]
+                df_hoy = df_copia[df_copia["Fecha_Str"] == hoy_str]
                 if df_hoy.empty:
-                    df_hoy = df_copia[df_copia["Fecha"].str.contains(hoy_str, na=False)]
+                    df_hoy = df_copia[df_copia["Fecha_Str"].str.contains(hoy_str, na=False)]
 
                 if not df_hoy.empty:
-                    for _, row in df_hoy.iterrows():
-                        renderizar_tarjeta(row, muestra_fecha=False)
+                    for i in range(len(df_hoy)):
+                        renderizar_tarjeta(df_hoy.iloc[i], muestra_fecha=False)
                 else:
                     st.info(f"No hay eventos registrados para hoy ({hoy_str}).")
 
             elif modo_vista == "Próximos 3 días":
-                dias_proximos = [(hoy_dt + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(0, 4)]
-                df_3dias = df_copia[df_copia["Fecha_Clean"].isin(dias_proximos)].sort_values("Fecha_Clean")
+                dias_limite = (hoy_dt + timedelta(days=3)).strftime("%Y-%m-%d")
+                
+                mask_3dias = (df_copia["Fecha_Str"] >= hoy_str) & (df_copia["Fecha_Str"] <= dias_limite)
+                df_3dias = df_copia[mask_3dias].sort_values("Fecha_Str")
 
                 if not df_3dias.empty:
-                    for _, row in df_3dias.iterrows():
-                        renderizar_tarjeta(row, muestra_fecha=True)
+                    for i in range(len(df_3dias)):
+                        renderizar_tarjeta(df_3dias.iloc[i], muestra_fecha=True)
                 else:
                     st.info("No hay eventos registrados dentro de los próximos 3 días.")
 
             else:
-                df_futuros = df_copia.sort_values("Fecha_Clean", ascending=True)
+                df_todos = df_copia.sort_values("Fecha_Str", ascending=True)
 
-                if not df_futuros.empty:
-                    for _, row in df_futuros.iterrows():
-                        renderizar_tarjeta(row, muestra_fecha=True)
+                if not df_todos.empty:
+                    for i in range(len(df_todos)):
+                        renderizar_tarjeta(df_todos.iloc[i], muestra_fecha=True)
                 else:
                     st.warning("No se encontraron registros en Google Sheets.")
         else:
@@ -355,10 +354,7 @@ else:
             df_filtrado = df.copy()
 
             if not df_filtrado.empty and "Fecha" in df_filtrado.columns:
-                df_filtrado["Fecha_DT"] = pd.to_datetime(df_filtrado["Fecha"], errors="coerce", dayfirst=True)
-                mask_nat = df_filtrado["Fecha_DT"].isna()
-                if mask_nat.any():
-                    df_filtrado.loc[mask_nat, "Fecha_DT"] = pd.to_datetime(df_filtrado.loc[mask_nat, "Fecha"], errors="coerce")
+                df_filtrado["Fecha_DT"] = pd.to_datetime(df_filtrado["Fecha"], errors="coerce")
 
             if filtro_cliente.strip() and not df_filtrado.empty:
                 mask_cliente = (
@@ -442,17 +438,21 @@ else:
         else:
             costo_total = monto_alquiler
 
-        monto_adelanto = st.number_input("Adelanto (S/)", min_value=0, step=1, value=0, key="c_adelanto")
+        # CHECK DE PAGO TOTAL Y LÓGICA DE ADELANTO
+        pago_total = st.checkbox("✅ Pago Total")
+
+        if pago_total:
+            monto_adelanto = costo_total
+            st.number_input("Adelanto (S/)", min_value=0, value=int(monto_adelanto), disabled=True, key="c_adelanto_dis")
+        else:
+            monto_adelanto = st.number_input("Adelanto (S/)", min_value=0, step=1, value=0, key="c_adelanto")
 
         monto_pendiente = max(0, int(costo_total) - int(monto_adelanto))
 
-        st.caption("Estado de Pago")
         if monto_pendiente == 0 and costo_total > 0:
-            st.success("✅ CANCELADO")
-            estado_pago = "Pago completo"
+            st.success("✅ SERVICIO TOTALMENTE CANCELADO")
         else:
-            st.warning(f"💵 PENDIENTE: S/ {monto_pendiente}")
-            estado_pago = "Pago parcial"
+            st.warning(f"💵 MONTO PENDIENTE: S/ {monto_pendiente}")
 
         descripcion = st.text_area("📝 Observaciones", placeholder="Detalles adicionales...")
 
@@ -475,22 +475,22 @@ else:
 
                 desglose_str = " | ".join(desglose_partes) if desglose_partes else f"S/ {costo_total}"
 
+                # Payload actualizado sin la propiedad Estado_Pago
                 payload = {
                     "Marca": marca_seleccionada,
                     "Fecha": fecha_str,
                     "Tipo": tipo_servicio if agregar_alquiler == "No" or tipo_servicio == "Alquiler" else f"{tipo_servicio} + Alquiler",
                     "Evento": nombre_evento if nombre_evento else "Evento",
                     "Hora": hora_contrato_str,
+                    "Direccion": direccion,
                     "Hora_Invitacion": hora_invitacion_str,
                     "Cliente": cliente,
                     "Telefono": telefono,
-                    "Direccion": direccion,
                     "Costo_Total": str(int(costo_total)),
                     "Monto_Adelanto": str(int(monto_adelanto)),
-                    "Estado_Pago": estado_pago,
+                    "Descripcion": descripcion if descripcion else "Sin descripción",
                     "Desglose_Costos": desglose_str,
-                    "Concepto_Alquiler": concepto_alquiler if concepto_alquiler else "N/A",
-                    "Descripcion": descripcion if descripcion else "Sin descripción"
+                    "Concepto_Alquiler": concepto_alquiler if concepto_alquiler else "N/A"
                 }
 
                 try:
