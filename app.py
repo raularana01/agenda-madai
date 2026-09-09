@@ -23,7 +23,7 @@ def obtener_base64_de_archivo(ruta_imagen):
 imagen_fondo_b64 = obtener_base64_de_archivo("fondo.jpeg")
 imagen_logo_b64 = obtener_base64_de_archivo("logo.jpeg")
 
-# CSS: Fondo y estilos visuales con colores diferenciados por marca
+# CSS: Reducción de espacios y fondo
 css_fondo = ""
 if imagen_fondo_b64:
     css_fondo = f"""
@@ -40,152 +40,127 @@ st.markdown(f"""
 <style>
     {css_fondo}
 
-    /* Tarjeta contenedora principal */
+    /* Reducción máxima de márgenes y paddings en contenedor principal */
     [data-testid="stAppViewContainer"] > .main {{
-        background-color: rgba(255, 255, 255, 0.95) !important;
-        border-radius: 14px;
-        padding: 14px !important;
-        margin-top: 10px;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        background-color: rgba(255, 255, 255, 0.96) !important;
+        border-radius: 12px;
+        padding: 8px !important;
+        margin-top: 5px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
     }}
 
-    /* Encabezado */
+    .block-container {{
+        padding-top: 0.2rem !important;
+        padding-bottom: 0.2rem !important;
+        padding-left: 0.3rem !important;
+        padding-right: 0.3rem !important;
+        max-width: 100% !important;
+    }}
+
+    /* Reducir espacio entre bloques verticales */
+    div[data-testid="stVerticalBlock"] > div {{
+        margin-bottom: -10px !important;
+        padding-bottom: 0px !important;
+    }}
+
+    /* Encabezado compacto */
     .header-container {{
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 12px;
+        gap: 8px;
+        margin-bottom: 6px;
     }}
     
     .header-logo {{
-        width: 62px;
-        height: 62px;
+        width: 48px;
+        height: 48px;
         object-fit: contain;
         border-radius: 50%;
         border: 2px solid #FFFFFF;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.5);
     }}
 
     .header-title {{
-        font-size: 34px;
+        font-size: 26px;
         font-weight: 900;
         background: linear-gradient(45deg, #FF007F, #FF8C00, #00E5FF);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin: 0;
         padding: 0;
-        line-height: 1.1;
-        letter-spacing: 0.5px;
-        filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.9));
+        line-height: 1;
     }}
 
     /* Legibilidad de textos */
     label, p, span, div, .stMarkdown, .stRadio label, .stCheckbox label {{
         color: #000000 !important;
         font-weight: 800 !important;
-        text-shadow: 0px 0px 3px rgba(255, 255, 255, 0.9), 0px 0px 1px #FFFFFF;
     }}
 
-    /* Inputs */
-    div[data-testid="stTextInput"] input, 
-    div[data-testid="stNumberInput"] input, 
-    div[data-testid="stSelectbox"] select, 
-    div[data-testid="stTextArea"] textarea {{
-        background-color: #FFFFFF !important;
-        color: #000000 !important;
-        border: 2px solid #DDDDDD !important;
-        border-radius: 8px !important;
-        font-weight: 700 !important;
-    }}
-
-    /* Bloqueo de scroll horizontal */
-    html, body, [data-testid="stAppViewContainer"], .main {{
-        overflow-x: hidden !important;
-    }}
-    .main .block-container {{
-        padding-top: 0.5rem !important;
-        padding-bottom: 0.5rem !important;
-        padding-left: 0.5rem !important;
-        padding-right: 0.5rem !important;
-        max-width: 100% !important;
-    }}
-
-    div[data-testid="stVerticalBlock"] > div {{
-        margin-bottom: -6px !important;
-        padding-bottom: 0px !important;
-    }}
-
-    div[data-testid="column"] {{
-        min-width: 0px !important;
-    }}
-
-    /* ESTILOS DE TARJETAS POR MARCA */
+    /* Tarjetas Compactas */
     .card-madai {{
         background: linear-gradient(135deg, #E0F7FA 0%, #B2EBF2 100%) !important;
-        border-left: 8px solid #00838F;
-        padding: 14px;
-        border-radius: 10px;
-        margin-bottom: 12px;
-        box-shadow: 0 4px 12px rgba(0, 131, 143, 0.2);
-    }}
-    
-    .badge-madai {{
-        background-color: #00838F;
-        color: #FFFFFF !important;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 12px;
-        font-weight: bold;
-        text-shadow: none !important;
+        border-left: 6px solid #00838F;
+        padding: 8px 12px;
+        border-radius: 8px;
+        margin-bottom: 4px;
+        box-shadow: 0 2px 8px rgba(0, 131, 143, 0.15);
     }}
 
     .card-risuena {{
         background: linear-gradient(135deg, #F3E5F5 0%, #E1BEE7 100%) !important;
-        border-left: 8px solid #7B1FA2;
-        padding: 14px;
-        border-radius: 10px;
-        margin-bottom: 12px;
-        box-shadow: 0 4px 12px rgba(123, 31, 162, 0.2);
+        border-left: 6px solid #7B1FA2;
+        padding: 8px 12px;
+        border-radius: 8px;
+        margin-bottom: 4px;
+        box-shadow: 0 2px 8px rgba(123, 31, 162, 0.15);
+    }}
+
+    .badge-madai {{
+        background-color: #00838F;
+        color: #FFFFFF !important;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: bold;
     }}
 
     .badge-risuena {{
         background-color: #7B1FA2;
         color: #FFFFFF !important;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
         font-weight: bold;
-        text-shadow: none !important;
     }}
 
     .card-header {{
-        font-size: 16px;
+        font-size: 15px;
         font-weight: bold;
-        margin-bottom: 6px;
+        margin-bottom: 4px;
         color: #000000;
         display: flex;
         align-items: center;
         justify-content: space-between;
     }}
+
     .card-sub {{
-        font-size: 13px;
+        font-size: 12px;
         color: #111111;
-        margin-bottom: 3px;
+        margin-bottom: 2px;
+        line-height: 1.2;
     }}
 
-    /* Estilo de Ficha Completa del Evento */
-    .ficha-completa {{
-        background-color: #FFFFFF !important;
-        border: 2px dashed #00838F;
-        border-radius: 10px;
-        padding: 12px;
-        margin-top: 8px;
-        margin-bottom: 12px;
+    /* Botones diminutos/compactos para las tarjetas */
+    div[data-testid="stColumn"] button {{
+        padding: 2px 6px !important;
+        font-size: 11px !important;
+        min-height: 28px !important;
+        height: 28px !important;
     }}
 </style>
 """, unsafe_allow_html=True)
 
-# Encabezado
+# Encabezado Compacto
 html_logo = f'<img src="{imagen_logo_b64}" class="header-logo">' if imagen_logo_b64 else ''
 st.markdown(f"""
 <div class="header-container">
@@ -210,8 +185,6 @@ with col_m3:
     if st.button("➕ Nuevo", use_container_width=True, type="primary" if st.session_state["menu_activo"] == "Nuevo" else "secondary"):
         st.session_state["menu_activo"] = "Nuevo"
         st.rerun()
-
-st.write("---")
 
 GOOGLE_SHEET_URL = st.secrets.get("GOOGLE_SHEET_URL", os.environ.get("GOOGLE_SHEET_URL", ""))
 GOOGLE_SCRIPT_URL = st.secrets.get("GOOGLE_SCRIPT_URL", os.environ.get("GOOGLE_SCRIPT_URL", ""))
@@ -250,16 +223,117 @@ def obtener_valor(row, col_name):
         val = val.iloc[0] if not val.empty else ""
     return str(val).strip()
 
+# =========================================================
+# VENTANAS EMERGENTES (DIALOGS)
+# =========================================================
+
+@st.dialog("👤 Asignar Personal al Evento")
+def abrir_dialogo_personal(event_key):
+    # Recuperar o inicializar estado guardado
+    datos_guardados = st.session_state.get(f"data_personal_{event_key}", {})
+    
+    num_dalinas_init = datos_guardados.get("num_dalinas", 1)
+    if f"temp_num_dalinas_{event_key}" not in st.session_state:
+        st.session_state[f"temp_num_dalinas_{event_key}"] = num_dalinas_init
+
+    num_dalinas = st.session_state[f"temp_num_dalinas_{event_key}"]
+    st.markdown(f"**💃 Dalinas ({num_dalinas}/7):**")
+
+    dalinas_inputs = []
+    for i in range(num_dalinas):
+        val_default = datos_guardados.get("dalinas", [])[i] if i < len(datos_guardados.get("dalinas", [])) else ""
+        nombre_d = st.text_input(f"Dalina {i+1}", value=val_default, key=f"dlg_dalina_{i}_{event_key}", placeholder=f"Nombre Dalina {i+1}")
+        dalinas_inputs.append(nombre_d)
+
+    c_add, c_rem = st.columns(2)
+    with c_add:
+        if num_dalinas < 7:
+            if st.button("➕ Agregar Dalina", key=f"dlg_btn_add_{event_key}", use_container_width=True):
+                st.session_state[f"temp_num_dalinas_{event_key}"] += 1
+                st.rerun()
+    with c_rem:
+        if num_dalinas > 1:
+            if st.button("➖ Quitar Dalina", key=f"dlg_btn_rem_{event_key}", use_container_width=True):
+                st.session_state[f"temp_num_dalinas_{event_key}"] -= 1
+                st.rerun()
+
+    st.write("---")
+
+    opciones_animador = ["Ninguno(a)", "Madai", "Martha", "Eusy", "Antonio", "Jair", "Britny", "Gina"]
+    anim_idx = opciones_animador.index(datos_guardados.get("animador", "Ninguno(a)")) if datos_guardados.get("animador") in opciones_animador else 0
+    animador_val = st.selectbox("🎤 Animador(a):", opciones_animador, index=anim_idx, key=f"dlg_anim_{event_key}")
+
+    c_dj, c_st = st.columns(2)
+    with c_dj:
+        dj_val = st.text_input("🎧 DJ:", value=datos_guardados.get("dj", ""), key=f"dlg_dj_{event_key}", placeholder="Nombre DJ")
+    with c_st:
+        staff_val = st.text_input("🛠️ Staff:", value=datos_guardados.get("staff", ""), key=f"dlg_staff_{event_key}", placeholder="Nombre Staff")
+
+    duracion_val = st.text_input("⏳ Duración:", value=datos_guardados.get("duracion", ""), key=f"dlg_dur_{event_key}", placeholder="ej. 2 Horas")
+    detalles_val = st.text_area("📝 Detalles:", value=datos_guardados.get("detalles", ""), key=f"dlg_det_{event_key}", placeholder="Observaciones...")
+
+    if st.button("💾 Guardar Datos", key=f"dlg_btn_save_{event_key}", use_container_width=True, type="primary"):
+        # Guardar permanentemente en session_state
+        st.session_state[f"data_personal_{event_key}"] = {
+            "num_dalinas": num_dalinas,
+            "dalinas": [d.strip() for d in dalinas_inputs if d.strip()],
+            "animador": animador_val,
+            "dj": dj_val.strip(),
+            "staff": staff_val.strip(),
+            "duracion": duracion_val.strip(),
+            "detalles": detalles_val.strip()
+        }
+        st.rerun()
+
+@st.dialog("📜 Ficha Completa del Evento")
+def abrir_dialogo_ficha(row, event_key):
+    marca = obtener_valor(row, "Marca") or "Madai"
+    v_fecha = obtener_valor(row, "Fecha")
+    v_evento = obtener_valor(row, "Evento") or "Evento"
+    v_tipo = obtener_valor(row, "Tipo")
+    h_contrato = obtener_valor(row, "Hora") or "N/A"
+    h_citacion = obtener_valor(row, "Hora_Invitacion") or "N/A"
+    v_cliente = obtener_valor(row, "Cliente") or "N/A"
+    v_telefono = obtener_valor(row, "Telefono") or "N/A"
+    v_lugar = obtener_valor(row, "Direccion") or "N/A"
+    
+    try:
+        v_total_num = float(obtener_valor(row, "Costo_Total") or 0)
+        v_adelanto_num = float(obtener_valor(row, "Monto_Adelanto") or 0)
+        v_pendiente_num = max(0, int(v_total_num - v_adelanto_num))
+    except ValueError:
+        v_total_num, v_pendiente_num = 0, 0
+
+    datos_p = st.session_state.get(f"data_personal_{event_key}", {})
+    dalinas_str = ", ".join(datos_p.get("dalinas", [])) if datos_p.get("dalinas") else "Ninguna asignada"
+    anim_str = datos_p.get("animador", "Ninguno(a)")
+    dj_str = datos_p.get("dj") or "No asignado"
+    staff_str = datos_p.get("staff") or "No asignado"
+    dur_str = datos_p.get("duracion") or "No especificada"
+    det_str = datos_p.get("detalles") or "Sin detalles"
+
+    st.markdown(f"""
+    <div style="font-size: 13px; line-height: 1.4;">
+        <p><b>🏷️ Marca:</b> {marca.upper()} | <b>🎉 Evento:</b> {v_evento} ({v_tipo})</p>
+        <p><b>📅 Fecha:</b> {v_fecha} | <b>⏰ Contrato:</b> {h_contrato} | <b>Citación:</b> {h_citacion}</p>
+        <p><b>👤 Cliente:</b> {v_cliente} | <b>📱 Teléfono:</b> {v_telefono}</p>
+        <p><b>📍 Ubicación:</b> {v_lugar}</p>
+        <p><b>💰 Total:</b> S/ {int(v_total_num)} | <b>Monto Pendiente:</b> S/ {v_pendiente_num}</p>
+        <hr style="margin: 6px 0;">
+        <p style="color:#7B1FA2; font-weight:bold; margin-bottom:4px;">👥 PERSONAL Y SHOW:</p>
+        <p><b>💃 Dalina(s):</b> {dalinas_str}</p>
+        <p><b>🎤 Animador(a):</b> {anim_str}</p>
+        <p><b>🎧 DJ:</b> {dj_str} | <b>🛠️ Staff:</b> {staff_str}</p>
+        <p><b>⏳ Duración:</b> {dur_str}</p>
+        <p><b>📝 Detalles:</b> {det_str}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+
 def renderizar_tarjeta(row, index_evento, muestra_fecha=False):
     marca = obtener_valor(row, "Marca") or "Madai"
-    
-    # Asignar clase CSS según la marca
-    if marca.lower() == "risueña":
-        clase_tarjeta = "card-risuena"
-        clase_badge = "badge-risuena"
-    else:
-        clase_tarjeta = "card-madai"
-        clase_badge = "badge-madai"
+    clase_tarjeta = "card-risuena" if marca.lower() == "risueña" else "card-madai"
+    clase_badge = "badge-risuena" if marca.lower() == "risueña" else "badge-madai"
 
     v_fecha = obtener_valor(row, "Fecha")
     v_evento = obtener_valor(row, "Evento") or "Evento"
@@ -275,12 +349,11 @@ def renderizar_tarjeta(row, index_evento, muestra_fecha=False):
         v_adelanto_num = float(obtener_valor(row, "Monto_Adelanto") or 0)
         v_pendiente_num = max(0, int(v_total_num - v_adelanto_num))
     except ValueError:
-        v_total_num = 0
-        v_pendiente_num = 0
+        v_total_num, v_pendiente_num = 0, 0
 
     texto_fecha = f"📅 {v_fecha} | " if muestra_fecha else ""
 
-    # Tarjeta Principal
+    # Tarjeta Ultra Simplificada
     st.markdown(f"""
     <div class="{clase_tarjeta}">
         <div class="card-header">
@@ -289,99 +362,23 @@ def renderizar_tarjeta(row, index_evento, muestra_fecha=False):
         </div>
         <div class="card-sub">⏰ <b>Hora Contrato:</b> {h_contrato} | <b>Citación:</b> {h_citacion}</div>
         <div class="card-sub">👤 <b>Cliente:</b> {v_cliente} | 📱 <b>Tel:</b> {v_telefono}</div>
-        <div class="card-sub">📍 <b>Lugar:</b> {v_lugar}</div>
-        <div class="card-sub">💰 <b>Total:</b> S/ {int(v_total_num)} | <b>Pendiente:</b> S/ {v_pendiente_num}</div>
+        <div class="card-sub">📍 <b>Lugar:</b> {v_lugar} | 💰 <b>Total:</b> S/ {int(v_total_num)} | <b>Pendiente:</b> S/ {v_pendiente_num}</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Key único por evento para session_state
     event_key = f"evt_{index_evento}_{v_fecha}_{v_cliente}"
 
-    # Estado para la visibilidad de la ficha completa
-    if f"ver_ficha_{event_key}" not in st.session_state:
-        st.session_state[f"ver_ficha_{event_key}"] = False
+    # 2 Botones Pequeños alineados horizontalmente
+    btn_col1, btn_col2 = st.columns(2)
+    with btn_col1:
+        if st.button("👤 Asignar Personal", key=f"btn_asig_{event_key}", use_container_width=True):
+            abrir_dialogo_personal(event_key)
+    with btn_col2:
+        if st.button("📋 Ver Ficha", key=f"btn_fich_{event_key}", use_container_width=True):
+            abrir_dialogo_ficha(row, event_key)
 
-    c_btn1, c_btn2 = st.columns(2)
-    with c_btn1:
-        if st.button("📋 Ver Ficha Completa", key=f"btn_ver_ficha_{event_key}", use_container_width=True):
-            st.session_state[f"ver_ficha_{event_key}"] = not st.session_state[f"ver_ficha_{event_key}"]
-            st.rerun()
+    st.write("") # Pequeña separación
 
-    # DESPLEGABLE DE GESTIÓN (Asignar personal)
-    with st.expander("⚙️ Asignar Personal y Editar Detalles"):
-        if f"num_dalinas_{event_key}" not in st.session_state:
-            st.session_state[f"num_dalinas_{event_key}"] = 1
-
-        num_dalinas = st.session_state[f"num_dalinas_{event_key}"]
-        st.markdown(f"**💃 Dalinas asignadas ({num_dalinas}/7):**")
-
-        for i in range(num_dalinas):
-            st.text_input(f"Nombre de Dalina {i+1}", key=f"dalina_{i}_{event_key}", placeholder=f"ej. Dalina {i+1}")
-
-        c_add, c_rem = st.columns(2)
-        with c_add:
-            if num_dalinas < 7:
-                if st.button("➕ Agregar Dalina", key=f"btn_add_dalina_{event_key}", use_container_width=True):
-                    st.session_state[f"num_dalinas_{event_key}"] += 1
-                    st.rerun()
-        with c_rem:
-            if num_dalinas > 1:
-                if st.button("➖ Quitar Dalina", key=f"btn_rem_dalina_{event_key}", use_container_width=True):
-                    st.session_state[f"num_dalinas_{event_key}"] -= 1
-                    st.rerun()
-
-        st.write("---")
-
-        opciones_animador = ["Ninguno(a)", "Madai", "Martha", "Eusy", "Antonio", "Jair", "Britny", "Gina"]
-        st.selectbox("🎤 Animador(a):", opciones_animador, key=f"animador_{event_key}")
-
-        col_dj, col_staff = st.columns(2)
-        with col_dj:
-            st.text_input("🎧 DJ:", key=f"dj_{event_key}", placeholder="Nombre del DJ")
-        with col_staff:
-            st.text_input("🛠️ Staff / Apoyo:", key=f"staff_{event_key}", placeholder="Nombre del staff")
-
-        st.text_input("⏳ Duración:", key=f"duracion_{event_key}", placeholder="ej. 2 Horas / 30 min")
-        st.text_area("📝 Detalles adicionales:", key=f"detalles_{event_key}", placeholder="Notas extra...")
-
-        if st.button("💾 Guardar Personal", key=f"btn_save_details_{event_key}", use_container_width=True, type="primary"):
-            st.success("✅ Datos del evento actualizados.")
-
-    # MOSTRAR LA FICHA COMPLETA SI EL BOTÓN FUE PRESIONADO
-    if st.session_state[f"ver_ficha_{event_key}"]:
-        # Recopilar Dalinas
-        dalinas_list = []
-        n_dal = st.session_state.get(f"num_dalinas_{event_key}", 1)
-        for i in range(n_dal):
-            val_dal = st.session_state.get(f"dalina_{i}_{event_key}", "").strip()
-            if val_dal:
-                dalinas_list.append(val_dal)
-        
-        str_dalinas = ", ".join(dalinas_list) if dalinas_list else "Ninguna asignada"
-        anim_val = st.session_state.get(f"animador_{event_key}", "Ninguno(a)")
-        dj_val = st.session_state.get(f"dj_{event_key}", "").strip() or "No asignado"
-        staff_val = st.session_state.get(f"staff_{event_key}", "").strip() or "No asignado"
-        dur_val = st.session_state.get(f"duracion_{event_key}", "").strip() or "No especificada"
-        det_val = st.session_state.get(f"detalles_{event_key}", "").strip() or "Sin detalles"
-
-        st.markdown(f"""
-        <div class="ficha-completa">
-            <h4 style="margin-top:0; color:#00838F; text-align:center;">📜 FICHA COMPLETA DEL EVENTO</h4>
-            <hr style="margin: 6px 0;">
-            <p><b>🏷️ Marca:</b> {marca.upper()} | <b>🎉 Evento:</b> {v_evento} ({v_tipo})</p>
-            <p><b>📅 Fecha:</b> {v_fecha} | <b>⏰ Contrato:</b> {h_contrato} | <b>Citación:</b> {h_citacion}</p>
-            <p><b>👤 Cliente:</b> {v_cliente} | <b>📱 Teléfono:</b> {v_telefono}</p>
-            <p><b>📍 Ubicación:</b> {v_lugar}</p>
-            <p><b>💰 Total:</b> S/ {int(v_total_num)} | <b>Monto Pendiente:</b> S/ {v_pendiente_num}</p>
-            <hr style="margin: 6px 0;">
-            <h5 style="margin: 4px 0; color:#7B1FA2;">👥 PERSONAL ASIGNADO:</h5>
-            <p><b>💃 Dalina(s):</b> {str_dalinas}</p>
-            <p><b>🎤 Animador(a):</b> {anim_val}</p>
-            <p><b>🎧 DJ:</b> {dj_val} | <b>🛠️ Staff:</b> {staff_val}</p>
-            <p><b>⏳ Duración del Show:</b> {dur_val}</p>
-            <p><b>📝 Notas/Detalles:</b> {det_val}</p>
-        </div>
-        """, unsafe_allow_html=True)
 
 if not GOOGLE_SHEET_URL:
     st.warning("⚠️ Configura GOOGLE_SHEET_URL en los secretos de Streamlit.")
@@ -412,8 +409,8 @@ else:
                 hoy_date = (datetime.utcnow() - timedelta(hours=5)).date()
 
             modo_vista = st.radio(
-                "Ver eventos por categoría:",
-                ["Eventos del día (Hoy)", "Próximos 3 días", "Todos los eventos agendados"],
+                "Categoría:",
+                ["Eventos del día (Hoy)", "Próximos 3 días", "Todos los eventos"],
                 horizontal=True
             )
 
@@ -426,7 +423,7 @@ else:
                     for idx, row in df_hoy.iterrows():
                         renderizar_tarjeta(row, index_evento=idx, muestra_fecha=False)
                 else:
-                    st.info(f"No hay eventos registrados para hoy ({hoy_date.strftime('%Y-%m-%d')}).")
+                    st.info(f"No hay eventos para hoy ({hoy_date.strftime('%Y-%m-%d')}).")
 
             elif modo_vista == "Próximos 3 días":
                 limite_3dias = hoy_date + timedelta(days=3)
@@ -437,7 +434,7 @@ else:
                     for idx, row in df_3dias.iterrows():
                         renderizar_tarjeta(row, index_evento=idx, muestra_fecha=True)
                 else:
-                    st.info("No hay eventos registrados dentro de los próximos 3 días.")
+                    st.info("No hay eventos en los próximos 3 días.")
 
             else:
                 df_todos = df_copia.sort_values("Fecha_Date", ascending=True, na_position="last")
@@ -446,9 +443,9 @@ else:
                     for idx, row in df_todos.iterrows():
                         renderizar_tarjeta(row, index_evento=idx, muestra_fecha=True)
                 else:
-                    st.warning("No se encontraron registros en Google Sheets.")
+                    st.warning("No se encontraron registros.")
         else:
-            st.info("No hay datos guardados aún en la base de datos.")
+            st.info("No hay datos guardados en la base de datos.")
 
     # =========================================================
     # 2. MENÚ: FILTRO
@@ -456,15 +453,15 @@ else:
     elif st.session_state["menu_activo"] == "Filtro":
         st.subheader("🔍 Búsqueda y Filtros")
         
-        filtro_cliente = st.text_input("👤 Cliente / Nombre del Evento:", placeholder="Buscar por cliente o evento...")
-        filtro_telefono = st.text_input("📱 Número de Teléfono:", placeholder="Buscar por número...")
+        filtro_cliente = st.text_input("👤 Cliente / Nombre del Evento:", placeholder="Buscar cliente...")
+        filtro_telefono = st.text_input("📱 Número de Teléfono:", placeholder="Buscar número...")
         rango_fechas = st.date_input("📅 Rango de Fechas:", value=())
 
         tiene_filtro_fechas = isinstance(rango_fechas, (list, tuple)) and len(rango_fechas) == 2
         filtro_activo = bool(filtro_cliente.strip() or filtro_telefono.strip() or tiene_filtro_fechas)
 
         if not filtro_activo:
-            st.info("👉 Ingresa un nombre, número de teléfono o selecciona un rango de fechas.")
+            st.info("👉 Ingresa un nombre, número de teléfono o rango de fechas.")
         else:
             df_filtrado = df.copy()
 
@@ -491,14 +488,14 @@ else:
             if "Fecha_DT" in df_filtrado.columns:
                 df_filtrado = df_filtrado.drop(columns=["Fecha_DT"])
 
-            st.write(f"**Resultados encontrados:** {len(df_filtrado)}")
+            st.write(f"**Resultados:** {len(df_filtrado)}")
             st.dataframe(df_filtrado, use_container_width=True)
 
     # =========================================================
     # 3. MENÚ: NUEVO (FORMULARIO)
     # =========================================================
     elif st.session_state["menu_activo"] == "Nuevo":
-        marca_seleccionada = st.radio("🏷️ Selecciona la Marca", ["Madai", "Risueña"], horizontal=True)
+        marca_seleccionada = st.radio("🏷️ Marca", ["Madai", "Risueña"], horizontal=True)
 
         fecha_input = st.date_input("📅 Fecha", datetime.now())
         fecha_str = fecha_input.strftime("%Y-%m-%d")
@@ -509,7 +506,6 @@ else:
 
         cliente = st.text_input("👤 Cliente", placeholder="ej. María López")
 
-        # HORA CONTRATO
         st.caption("⏰ **Hora Contrato**")
         c1, c2 = st.columns([3.5, 1.2])
         with c1:
@@ -518,7 +514,6 @@ else:
             ampm_contrato = st.selectbox("AP1", ["PM", "AM"], key="hc_ap", label_visibility="collapsed")
         hora_contrato_str = f"{h_contrato_val.strip()} {ampm_contrato}"
 
-        # HORA CITACIÓN
         st.caption("📩 **Hora Citación**")
         c3, c4 = st.columns([3.5, 1.2])
         with c3:
@@ -553,7 +548,6 @@ else:
         else:
             costo_total = monto_alquiler
 
-        # CHECK DE PAGO TOTAL Y LÓGICA DE ADELANTO
         pago_total = st.checkbox("✅ Pago Total")
 
         if pago_total:
