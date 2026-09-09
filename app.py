@@ -212,7 +212,6 @@ def cargar_datos(url):
         df = pd.read_csv(url, dtype=str)
         df = df.fillna("")
         
-        # Estructura ajustada sin la columna Estado_Pago
         columnas_reales = [
             "Marca", "Fecha", "Tipo", "Evento", "Hora", 
             "Direccion", "Hora_Invitacion", "Cliente", "Telefono", 
@@ -250,7 +249,6 @@ def renderizar_tarjeta(row, muestra_fecha=False):
     v_telefono = obtener_valor(row, "Telefono") or "N/A"
     v_lugar = obtener_valor(row, "Direccion") or "N/A"
     
-    # Cálculo del pendiente
     try:
         v_total_num = float(obtener_valor(row, "Costo_Total") or 0)
         v_adelanto_num = float(obtener_valor(row, "Monto_Adelanto") or 0)
@@ -289,11 +287,11 @@ else:
         if not df.empty and "Fecha" in df.columns:
             df_copia = df.copy()
             
-            df_copia["Fecha_Str"] = df_copia["Fecha"].astype(str).str.strip()
-            df_copia["Fecha_DT"] = pd.to_datetime(df_copia["Fecha_Str"], errors="coerce")
+            # Convertir fechas a objetos datetime.date para comparar limpiamente
+            df_copia["Fecha_Parsed"] = pd.to_datetime(df_copia["Fecha"].astype(str).str.strip(), errors="coerce")
+            df_copia["Fecha_Date"] = df_copia["Fecha_Parsed"].dt.date
 
-            hoy_dt = datetime.now()
-            hoy_str = hoy_dt.strftime("%Y-%m-%d")
+            hoy_date = datetime.now().date()
 
             modo_vista = st.radio(
                 "Ver eventos por categoría:",
@@ -302,34 +300,31 @@ else:
             )
 
             if modo_vista == "Eventos del día (Hoy)":
-                df_hoy = df_copia[df_copia["Fecha_Str"] == hoy_str]
-                if df_hoy.empty:
-                    df_hoy = df_copia[df_copia["Fecha_Str"].str.contains(hoy_str, na=False)]
+                df_hoy = df_copia[df_copia["Fecha_Date"] == hoy_date]
 
                 if not df_hoy.empty:
-                    for i in range(len(df_hoy)):
-                        renderizar_tarjeta(df_hoy.iloc[i], muestra_fecha=False)
+                    for _, row in df_hoy.iterrows():
+                        renderizar_tarjeta(row, muestra_fecha=False)
                 else:
-                    st.info(f"No hay eventos registrados para hoy ({hoy_str}).")
+                    st.info(f"No hay eventos registrados para hoy ({hoy_date.strftime('%Y-%m-%d')}).")
 
             elif modo_vista == "Próximos 3 días":
-                dias_limite = (hoy_dt + timedelta(days=3)).strftime("%Y-%m-%d")
-                
-                mask_3dias = (df_copia["Fecha_Str"] >= hoy_str) & (df_copia["Fecha_Str"] <= dias_limite)
-                df_3dias = df_copia[mask_3dias].sort_values("Fecha_Str")
+                limite_3dias = hoy_date + timedelta(days=3)
+                mask_3dias = (df_copia["Fecha_Date"] >= hoy_date) & (df_copia["Fecha_Date"] <= limite_3dias)
+                df_3dias = df_copia[mask_3dias].sort_values("Fecha_Date")
 
                 if not df_3dias.empty:
-                    for i in range(len(df_3dias)):
-                        renderizar_tarjeta(df_3dias.iloc[i], muestra_fecha=True)
+                    for _, row in df_3dias.iterrows():
+                        renderizar_tarjeta(row, muestra_fecha=True)
                 else:
                     st.info("No hay eventos registrados dentro de los próximos 3 días.")
 
             else:
-                df_todos = df_copia.sort_values("Fecha_Str", ascending=True)
+                df_todos = df_copia.sort_values("Fecha_Date", ascending=True, na_position="last")
 
                 if not df_todos.empty:
-                    for i in range(len(df_todos)):
-                        renderizar_tarjeta(df_todos.iloc[i], muestra_fecha=True)
+                    for _, row in df_todos.iterrows():
+                        renderizar_tarjeta(row, muestra_fecha=True)
                 else:
                     st.warning("No se encontraron registros en Google Sheets.")
         else:
@@ -475,7 +470,6 @@ else:
 
                 desglose_str = " | ".join(desglose_partes) if desglose_partes else f"S/ {costo_total}"
 
-                # Payload actualizado sin la propiedad Estado_Pago
                 payload = {
                     "Marca": marca_seleccionada,
                     "Fecha": fecha_str,
